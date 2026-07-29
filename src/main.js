@@ -94,6 +94,12 @@ async function init() {
   volumeEl.value = Math.round(audio.volume * 100);
   updateVolumeIcon();
 
+  restorePlaybackState();
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) savePlaybackState();
+  });
+
   addFilesBtn.addEventListener('click', () => fileInput.click());
   addFolderBtn.addEventListener('click', () => folderInput.click());
   fileInput.addEventListener('change', (e) => importFiles(e.target.files));
@@ -116,6 +122,7 @@ async function init() {
   audio.addEventListener('pause', () => {
     playBtn.innerHTML = ICONS.play;
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+    savePlaybackState();
   });
 
   if ('mediaSession' in navigator) {
@@ -417,6 +424,7 @@ function playTrackById(id) {
   syncLibraryPadding();
   npTitle.textContent = track.title;
   updateMediaSessionMetadata(track);
+  savePlaybackState();
 
   document.querySelectorAll('.track-row').forEach((r) => {
     r.classList.toggle('playing', r.dataset.id === id);
@@ -434,6 +442,59 @@ function updateMediaSessionMetadata(track) {
       { src: `${base}icons/icon-512.png`, sizes: '512x512', type: 'image/png' },
     ],
   });
+}
+
+// ---- resume-on-reopen ----
+function savePlaybackState() {
+  const state = {
+    trackId: currentTrackId,
+    position: audio.currentTime || 0,
+    shuffle,
+    repeatMode,
+  };
+  localStorage.setItem('playback-state', JSON.stringify(state));
+}
+
+function restorePlaybackState() {
+  let saved;
+  try {
+    saved = JSON.parse(localStorage.getItem('playback-state') || 'null');
+  } catch {
+    saved = null;
+  }
+  if (!saved) return;
+
+  shuffle = !!saved.shuffle;
+  shuffleBtn.classList.toggle('active', shuffle);
+
+  repeatMode = saved.repeatMode === 'all' || saved.repeatMode === 'one' ? saved.repeatMode : 'off';
+  repeatBtn.innerHTML = repeatMode === 'one' ? ICONS.repeatOne : ICONS.repeat;
+  repeatBtn.classList.toggle('active', repeatMode !== 'off');
+
+  const track = tracks.find((t) => t.id === saved.trackId);
+  if (!track) return;
+
+  currentTrackId = track.id;
+  if (shuffle) shuffleOrder = buildShuffleOrder(visibleTracks, track.id);
+
+  currentObjectUrl = URL.createObjectURL(track.blob);
+  audio.src = currentObjectUrl;
+  audio.addEventListener(
+    'loadedmetadata',
+    () => {
+      if (Number.isFinite(saved.position) && saved.position > 0 && saved.position < audio.duration) {
+        audio.currentTime = saved.position;
+        updateSeekFill((saved.position / audio.duration) * 100);
+      }
+    },
+    { once: true }
+  );
+
+  playerBar.classList.remove('hidden');
+  syncLibraryPadding();
+  npTitle.textContent = track.title;
+  updateMediaSessionMetadata(track);
+  render();
 }
 
 function buildShuffleOrder(list, startId) {
@@ -496,12 +557,14 @@ function toggleShuffle() {
   shuffle = !shuffle;
   shuffleBtn.classList.toggle('active', shuffle);
   shuffleOrder = shuffle && currentTrackId ? buildShuffleOrder(visibleTracks, currentTrackId) : null;
+  savePlaybackState();
 }
 
 function cycleRepeat() {
   repeatMode = repeatMode === 'off' ? 'all' : repeatMode === 'all' ? 'one' : 'off';
   repeatBtn.innerHTML = repeatMode === 'one' ? ICONS.repeatOne : ICONS.repeat;
   repeatBtn.classList.toggle('active', repeatMode !== 'off');
+  savePlaybackState();
 }
 
 function onLoadedMetadata() {
