@@ -109,8 +109,21 @@ async function init() {
   audio.addEventListener('timeupdate', onTimeUpdate);
   audio.addEventListener('loadedmetadata', onLoadedMetadata);
   audio.addEventListener('ended', onEnded);
-  audio.addEventListener('play', () => (playBtn.innerHTML = ICONS.pause));
-  audio.addEventListener('pause', () => (playBtn.innerHTML = ICONS.play));
+  audio.addEventListener('play', () => {
+    playBtn.innerHTML = ICONS.pause;
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+  });
+  audio.addEventListener('pause', () => {
+    playBtn.innerHTML = ICONS.play;
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+  });
+
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.setActionHandler('play', () => audio.play().catch(() => {}));
+    navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+    navigator.mediaSession.setActionHandler('previoustrack', playPrev);
+    navigator.mediaSession.setActionHandler('nexttrack', playNext);
+  }
 
   seek.addEventListener('input', () => {
     seekDragging = true;
@@ -403,9 +416,23 @@ function playTrackById(id) {
   playerBar.classList.remove('hidden');
   syncLibraryPadding();
   npTitle.textContent = track.title;
+  updateMediaSessionMetadata(track);
 
   document.querySelectorAll('.track-row').forEach((r) => {
     r.classList.toggle('playing', r.dataset.id === id);
+  });
+}
+
+function updateMediaSessionMetadata(track) {
+  if (!('mediaSession' in navigator)) return;
+  const base = import.meta.env.BASE_URL;
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: track.title,
+    artist: 'Music Streamer',
+    artwork: [
+      { src: `${base}icons/icon-192.png`, sizes: '192x192', type: 'image/png' },
+      { src: `${base}icons/icon-512.png`, sizes: '512x512', type: 'image/png' },
+    ],
   });
 }
 
