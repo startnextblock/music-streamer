@@ -88,7 +88,8 @@ async function init() {
   repeatBtn.innerHTML = ICONS.repeat;
   volumeBtn.innerHTML = ICONS.volumeHigh;
 
-  const savedVolume = Number(localStorage.getItem('volume'));
+  const storedVolume = localStorage.getItem('volume');
+  const savedVolume = storedVolume === null ? NaN : Number(storedVolume);
   audio.volume = Number.isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 1 ? savedVolume : 1;
   volumeEl.value = Math.round(audio.volume * 100);
   updateVolumeIcon();
