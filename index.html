@@ -45,11 +45,17 @@
         </div>
 
         <div id="controls">
-          <button id="shuffle-btn" class="ctrl" title="Shuffle">🔀</button>
-          <button id="prev-btn" class="ctrl" title="Previous">⏮</button>
-          <button id="play-btn" class="ctrl big" title="Play/Pause">▶</button>
-          <button id="next-btn" class="ctrl" title="Next">⏭</button>
-          <button id="repeat-btn" class="ctrl" title="Repeat">🔁</button>
+          <div id="transport">
+            <button id="shuffle-btn" class="ctrl" title="Shuffle">🔀</button>
+            <button id="prev-btn" class="ctrl" title="Previous">⏮</button>
+            <button id="play-btn" class="ctrl big" title="Play/Pause">▶</button>
+            <button id="next-btn" class="ctrl" title="Next">⏭</button>
+            <button id="repeat-btn" class="ctrl" title="Repeat">🔁</button>
+          </div>
+          <div id="volume-control">
+            <button id="volume-btn" class="ctrl" title="Mute">🔊</button>
+            <input id="volume" type="range" min="0" max="100" value="100" />
+          </div>
         </div>
       </footer>
     </div>

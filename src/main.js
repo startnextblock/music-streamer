@@ -34,6 +34,8 @@ const actionSheetBackdrop = el('action-sheet-backdrop');
 const actionRenameBtn = el('action-rename');
 const actionDeleteBtn = el('action-delete');
 const actionCancelBtn = el('action-cancel');
+const volumeEl = el('volume');
+const volumeBtn = el('volume-btn');
 
 // ---- state ----
 let tracks = []; // full library, sorted
@@ -45,6 +47,7 @@ let shuffle = false;
 let repeatMode = 'off'; // 'off' | 'all' | 'one'
 let seekDragging = false;
 let actionSheetTrackId = null;
+let previousVolume = 1;
 
 // Hand-drawn SF Symbols-style icons (stroke/fill, no external font/CDN) so
 // controls read as crisp vector glyphs instead of inconsistent emoji.
@@ -61,6 +64,10 @@ const ICONS = {
   repeatOne:
     '<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><text x="12" y="15.5" font-size="8" font-family="system-ui, sans-serif" font-weight="700" stroke="none" fill="currentColor" text-anchor="middle">1</text></svg>',
   more: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>',
+  volumeHigh:
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M19.3 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  volumeMute:
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
 };
 
 init();
@@ -78,6 +85,12 @@ async function init() {
   nextBtn.innerHTML = ICONS.next;
   playBtn.innerHTML = ICONS.play;
   repeatBtn.innerHTML = ICONS.repeat;
+  volumeBtn.innerHTML = ICONS.volumeHigh;
+
+  const savedVolume = Number(localStorage.getItem('volume'));
+  audio.volume = Number.isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 1 ? savedVolume : 1;
+  volumeEl.value = Math.round(audio.volume * 100);
+  updateVolumeIcon();
 
   addFilesBtn.addEventListener('click', () => fileInput.click());
   addFolderBtn.addEventListener('click', () => folderInput.click());
@@ -108,6 +121,13 @@ async function init() {
     seekDragging = false;
   });
 
+  volumeEl.addEventListener('input', () => {
+    audio.volume = volumeEl.value / 100;
+    localStorage.setItem('volume', String(audio.volume));
+    updateVolumeIcon();
+  });
+  volumeBtn.addEventListener('click', toggleMute);
+
   actionSheetBackdrop.addEventListener('click', hideActionSheet);
   actionCancelBtn.addEventListener('click', hideActionSheet);
   actionRenameBtn.addEventListener('click', () => {
@@ -133,6 +153,22 @@ function showActionSheet(trackId) {
 function hideActionSheet() {
   actionSheet.classList.add('hidden');
   actionSheetTrackId = null;
+}
+
+function toggleMute() {
+  if (audio.volume > 0) {
+    previousVolume = audio.volume;
+    audio.volume = 0;
+  } else {
+    audio.volume = previousVolume || 1;
+  }
+  volumeEl.value = Math.round(audio.volume * 100);
+  localStorage.setItem('volume', String(audio.volume));
+  updateVolumeIcon();
+}
+
+function updateVolumeIcon() {
+  volumeBtn.innerHTML = audio.volume === 0 ? ICONS.volumeMute : ICONS.volumeHigh;
 }
 
 function sortTracks() {

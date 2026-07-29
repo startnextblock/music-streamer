@@ -377,8 +377,75 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 32px;
   margin-top: 24px;
+}
+
+#transport {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+#volume-control {
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+
+#volume {
+  width: 100px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+  cursor: pointer;
+}
+
+#volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+#volume::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  border: none;
+}
+
+#volume::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+#volume::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Volume adjustment is desktop-only — mobile relies on hardware volume keys. */
+@media (min-width: 700px) {
+  #controls {
+    justify-content: center;
+    position: relative;
+  }
+
+  #volume-control {
+    display: flex;
+    position: absolute;
+    right: 0;
+  }
 }
 
 .ctrl {
