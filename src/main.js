@@ -27,6 +27,10 @@ const prevBtn = el('prev-btn');
 const nextBtn = el('next-btn');
 const shuffleBtn = el('shuffle-btn');
 const repeatBtn = el('repeat-btn');
+const importStatus = el('import-status');
+const importBarFill = el('import-bar-fill');
+const importText = el('import-text');
+const toast = el('toast');
 
 // ---- state ----
 let tracks = []; // full library, sorted
@@ -91,10 +95,26 @@ function sortTracks() {
 
 // ---- import ----
 async function importFiles(fileList) {
-  const files = Array.from(fileList).filter(isAudioFile);
-  if (!files.length) return;
+  const allFiles = Array.from(fileList);
+  const files = allFiles.filter(isAudioFile);
+  const skippedCount = allFiles.length - files.length;
 
-  for (const file of files) {
+  if (!files.length) {
+    fileInput.value = '';
+    folderInput.value = '';
+    showToast(skippedCount ? `No audio files found among ${skippedCount} selected` : 'No files selected');
+    return;
+  }
+
+  setImporting(true);
+  let imported = 0;
+  let failed = 0;
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    importBarFill.style.width = `${Math.round((i / files.length) * 100)}%`;
+    importText.textContent = `Importing ${i + 1} of ${files.length}: ${file.name}`;
+
     try {
       const meta = await parseBlob(file).catch(() => null);
       const common = meta?.common ?? {};
@@ -114,15 +134,39 @@ async function importFiles(fileList) {
       };
       await saveTrack(id, record);
       tracks.push({ id, ...record });
+      imported++;
     } catch (err) {
       console.error('Failed to import', file.name, err);
+      failed++;
     }
   }
 
+  importBarFill.style.width = '100%';
   sortTracks();
   render();
   fileInput.value = '';
   folderInput.value = '';
+  setImporting(false);
+
+  const summary = [`Imported ${imported} song${imported === 1 ? '' : 's'}`];
+  if (failed) summary.push(`${failed} failed`);
+  if (skippedCount) summary.push(`${skippedCount} skipped (not audio)`);
+  showToast(summary.join(' · '));
+}
+
+function setImporting(isImporting) {
+  addFilesBtn.disabled = isImporting;
+  addFolderBtn.disabled = isImporting;
+  importStatus.classList.toggle('hidden', !isImporting);
+  if (isImporting) importBarFill.style.width = '0%';
+}
+
+let toastTimer = null;
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
 }
 
 function isAudioFile(file) {

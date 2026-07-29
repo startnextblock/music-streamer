@@ -19,6 +19,11 @@
         </div>
       </header>
 
+      <div id="import-status" class="hidden" role="status">
+        <div id="import-bar"><div id="import-bar-fill"></div></div>
+        <span id="import-text"></span>
+      </div>
+
       <main id="library">
         <p id="empty-state">
           Your library is empty. Tap <strong>＋ Files</strong> or <strong>＋ Folder</strong>
@@ -56,6 +61,7 @@
     <input type="file" id="file-input" accept="audio/*,.flac,.m4a,.ogg,.wav,.mp3" multiple hidden />
     <input type="file" id="folder-input" webkitdirectory multiple hidden />
     <audio id="audio" preload="metadata"></audio>
+    <div id="toast" role="status"></div>
 
     <script type="module" src="/src/main.js"></script>
   </body>
