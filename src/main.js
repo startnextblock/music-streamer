@@ -2,6 +2,7 @@ import './style.css';
 import { parseBlob } from 'music-metadata';
 import { getAllTracks, saveTrack, deleteTrack } from './db.js';
 import { registerSW } from 'virtual:pwa-register';
+import Sortable from 'sortablejs';
 
 registerSW({ immediate: true });
 
@@ -49,6 +50,7 @@ let repeatMode = 'off'; // 'off' | 'all' | 'one'
 let seekDragging = false;
 let actionSheetTrackId = null;
 let previousVolume = 1;
+let sortable = null;
 
 // Hand-drawn SF Symbols-style icons (stroke/fill, no external font/CDN) so
 // controls read as crisp vector glyphs instead of inconsistent emoji.
@@ -69,6 +71,7 @@ const ICONS = {
     '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M19.3 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
   volumeMute:
     '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  grip: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
 };
 
 init();
@@ -78,8 +81,16 @@ async function init() {
     navigator.storage.persist().catch(() => {});
   }
   tracks = await getAllTracks();
+  await migrateTrackOrder();
   sortTracks();
   render();
+
+  sortable = Sortable.create(trackListEl, {
+    handle: '.track-grip',
+    animation: 150,
+    chosenClass: 'track-row-dragging',
+    onEnd: onDragEnd,
+  });
 
   shuffleBtn.innerHTML = ICONS.shuffle;
   prevBtn.innerHTML = ICONS.prev;
@@ -204,7 +215,26 @@ function syncLibraryPadding() {
 }
 
 function sortTracks() {
+  tracks.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
+// One-time migration for libraries imported before manual ordering existed:
+// gives every track a stable `order` (seeded from the old alphabetical sort)
+// so the switch to manual ordering doesn't shuffle an existing library.
+async function migrateTrackOrder() {
+  if (tracks.every((t) => typeof t.order === 'number')) return;
   tracks.sort((a, b) => (a.album || '').localeCompare(b.album || '') || (a.title || '').localeCompare(b.title || ''));
+  await Promise.all(
+    tracks.map((t, i) => {
+      t.order = i;
+      const { id, ...record } = t;
+      return saveTrack(id, record);
+    })
+  );
+}
+
+function nextOrderValue() {
+  return tracks.length ? Math.max(...tracks.map((t) => t.order ?? 0)) + 1 : 0;
 }
 
 // ---- import ----
@@ -223,6 +253,7 @@ async function importFiles(fileList) {
   setImporting(true);
   let imported = 0;
   let failed = 0;
+  let orderCounter = nextOrderValue();
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -241,6 +272,7 @@ async function importFiles(fileList) {
         album: common.album || '',
         duration: format.duration || null,
         blob: file,
+        order: orderCounter++,
       };
       await saveTrack(id, record);
       tracks.push({ id, ...record });
@@ -297,6 +329,11 @@ function render() {
 
   emptyStateEl.style.display = tracks.length ? 'none' : 'block';
 
+  // Dragging to reorder only makes sense against the full, unfiltered
+  // library — reordering a filtered subset wouldn't map cleanly back to it.
+  trackListEl.classList.toggle('searching', !!query);
+  if (sortable) sortable.option('disabled', !!query);
+
   trackListEl.innerHTML = '';
   const frag = document.createDocumentFragment();
   for (const track of visibleTracks) {
@@ -305,10 +342,39 @@ function render() {
   trackListEl.appendChild(frag);
 }
 
+// Reads the final DOM order directly (rather than trusting SortableJS's
+// reported indices) so it stays correct regardless of how the drag resolved.
+function onDragEnd() {
+  const newOrderIds = Array.from(trackListEl.children)
+    .map((li) => li.dataset.id)
+    .filter(Boolean);
+  const byId = new Map(tracks.map((t) => [t.id, t]));
+  const reordered = newOrderIds.map((id) => byId.get(id)).filter(Boolean);
+  if (reordered.length !== tracks.length) return;
+
+  reordered.forEach((t, i) => {
+    t.order = i;
+  });
+  tracks = reordered;
+  visibleTracks = tracks;
+
+  Promise.all(
+    tracks.map((t) => {
+      const { id, ...record } = t;
+      return saveTrack(id, record);
+    })
+  ).catch((err) => console.error('Failed to persist new track order', err));
+}
+
 function renderTrackRow(track) {
   const li = document.createElement('li');
   li.className = 'track-row' + (track.id === currentTrackId ? ' playing' : '');
   li.dataset.id = track.id;
+
+  const grip = document.createElement('span');
+  grip.className = 'track-grip';
+  grip.innerHTML = ICONS.grip;
+  grip.addEventListener('click', (e) => e.stopPropagation());
 
   const meta = document.createElement('div');
   meta.className = 'track-meta';
@@ -330,7 +396,7 @@ function renderTrackRow(track) {
     showActionSheet(track.id);
   });
 
-  li.append(meta, duration, moreBtn);
+  li.append(grip, meta, duration, moreBtn);
   li.addEventListener('click', () => playTrackById(track.id));
   return li;
 }
@@ -381,7 +447,6 @@ async function renameTrack(id, newTitle) {
   track.title = newTitle;
   const { id: _id, ...record } = track;
   await saveTrack(id, record);
-  sortTracks();
   render();
 }
 

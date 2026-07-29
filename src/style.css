@@ -180,6 +180,24 @@ button {
   color: var(--accent);
 }
 
+.track-row-dragging {
+  background: var(--bg-elevated);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+}
+
+.track-grip {
+  display: flex;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  cursor: grab;
+  touch-action: none;
+}
+
+#track-list.searching .track-grip {
+  display: none;
+}
+
 .track-meta {
   min-width: 0;
   flex: 1;
