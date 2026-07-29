@@ -479,6 +479,14 @@ button {
   color: var(--accent);
 }
 
+/* #id + .active must outrank the plain #id specificity above, or the
+   dim-by-default rule always wins and the active state never shows. */
+#shuffle-btn.active,
+#repeat-btn.active {
+  color: var(--accent);
+  background: rgba(108, 92, 231, 0.15);
+}
+
 .ctrl.big {
   width: 66px;
   height: 66px;
