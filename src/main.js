@@ -16,9 +16,7 @@ const fileInput = el('file-input');
 const folderInput = el('folder-input');
 const audio = el('audio');
 const playerBar = el('player-bar');
-const npArt = el('np-art');
 const npTitle = el('np-title');
-const npArtist = el('np-artist');
 const seek = el('seek');
 const timeCurrent = el('time-current');
 const timeTotal = el('time-total');
@@ -37,7 +35,6 @@ let tracks = []; // full library, sorted
 let visibleTracks = []; // after search filter; also the base play queue
 let currentTrackId = null;
 let currentObjectUrl = null;
-const artUrlCache = new Map(); // trackId -> object URL, for thumbnails + now-playing art
 let shuffleOrder = null; // ordered id list used when shuffle is on
 let shuffle = false;
 let repeatMode = 'off'; // 'off' | 'all' | 'one'
@@ -108,12 +105,7 @@ async function init() {
 }
 
 function sortTracks() {
-  tracks.sort(
-    (a, b) =>
-      (a.artist || '').localeCompare(b.artist || '') ||
-      (a.album || '').localeCompare(b.album || '') ||
-      (a.title || '').localeCompare(b.title || '')
-  );
+  tracks.sort((a, b) => (a.album || '').localeCompare(b.album || '') || (a.title || '').localeCompare(b.title || ''));
 }
 
 // ---- import ----
@@ -142,17 +134,13 @@ async function importFiles(fileList) {
       const meta = await parseBlob(file).catch(() => null);
       const common = meta?.common ?? {};
       const format = meta?.format ?? {};
-      const picture = common.picture?.[0];
-      const artwork = picture ? new Blob([picture.data], { type: picture.format }) : null;
 
       const id = crypto.randomUUID();
       const record = {
         name: file.name,
         title: common.title || stripExtension(file.name),
-        artist: common.artist || 'Unknown artist',
         album: common.album || '',
         duration: format.duration || null,
-        artwork,
         blob: file,
       };
       await saveTrack(id, record);
@@ -205,18 +193,10 @@ function stripExtension(name) {
 function render() {
   const query = searchEl.value.trim().toLowerCase();
   visibleTracks = query
-    ? tracks.filter((t) => [t.title, t.artist, t.album].some((s) => (s || '').toLowerCase().includes(query)))
+    ? tracks.filter((t) => [t.title, t.album].some((s) => (s || '').toLowerCase().includes(query)))
     : tracks;
 
   emptyStateEl.style.display = tracks.length ? 'none' : 'block';
-
-  // Revoke thumbnail URLs that have scrolled out of the current view/filter.
-  for (const [id, url] of artUrlCache) {
-    if (id !== currentTrackId && !visibleTracks.some((t) => t.id === id)) {
-      URL.revokeObjectURL(url);
-      artUrlCache.delete(id);
-    }
-  }
 
   trackListEl.innerHTML = '';
   const frag = document.createDocumentFragment();
@@ -226,33 +206,17 @@ function render() {
   trackListEl.appendChild(frag);
 }
 
-function artUrlFor(track) {
-  if (!track.artwork) return '';
-  if (artUrlCache.has(track.id)) return artUrlCache.get(track.id);
-  const url = URL.createObjectURL(track.artwork);
-  artUrlCache.set(track.id, url);
-  return url;
-}
-
 function renderTrackRow(track) {
   const li = document.createElement('li');
   li.className = 'track-row' + (track.id === currentTrackId ? ' playing' : '');
   li.dataset.id = track.id;
-
-  const img = document.createElement('img');
-  img.className = 'track-art';
-  img.src = artUrlFor(track) || blankArtDataUri();
-  img.alt = '';
 
   const meta = document.createElement('div');
   meta.className = 'track-meta';
   const titleEl = document.createElement('div');
   titleEl.className = 'track-title';
   titleEl.textContent = track.title;
-  const artistEl = document.createElement('div');
-  artistEl.className = 'track-artist';
-  artistEl.textContent = track.artist;
-  meta.append(titleEl, artistEl);
+  meta.append(titleEl);
 
   const duration = document.createElement('span');
   duration.className = 'track-duration';
@@ -267,16 +231,9 @@ function renderTrackRow(track) {
     removeTrack(track.id);
   });
 
-  li.append(img, meta, duration, del);
+  li.append(meta, duration, del);
   li.addEventListener('click', () => playTrackById(track.id));
   return li;
-}
-
-function blankArtDataUri() {
-  return (
-    'data:image/svg+xml;base64,' +
-    btoa('<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><rect width="44" height="44" fill="#1c1a27"/></svg>')
-  );
 }
 
 async function removeTrack(id) {
@@ -315,8 +272,6 @@ function playTrackById(id) {
 
   playerBar.classList.remove('hidden');
   npTitle.textContent = track.title;
-  npArtist.textContent = track.artist;
-  npArt.src = artUrlFor(track) || blankArtDataUri();
 
   document.querySelectorAll('.track-row').forEach((r) => {
     r.classList.toggle('playing', r.dataset.id === id);
