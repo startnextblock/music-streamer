@@ -270,23 +270,23 @@ button {
   outline: none;
 }
 
-#action-sheet.hidden {
+.sheet-overlay.hidden {
   display: none;
 }
 
-#action-sheet {
+.sheet-overlay {
   position: fixed;
   inset: 0;
   z-index: 100;
 }
 
-#action-sheet-backdrop {
+.sheet-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
 }
 
-#action-sheet-panel {
+.sheet-panel {
   position: absolute;
   left: 0;
   right: 0;
@@ -295,8 +295,10 @@ button {
   flex-direction: column;
   background: var(--bg-elevated);
   border-radius: 14px 14px 0 0;
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
   gap: 4px;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .sheet-btn {
@@ -323,6 +325,96 @@ button {
   margin-top: 4px;
   padding-top: 14px;
   border-radius: 0;
+}
+
+#settings-sheet-panel h2 {
+  margin: 8px 0 16px;
+  font-size: 1.1rem;
+}
+
+.settings-section {
+  margin-bottom: 20px;
+}
+
+.settings-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+#theme-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.theme-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  font-size: 0.88rem;
+}
+
+.theme-option.selected {
+  background: rgba(var(--accent-rgb), 0.15);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+#accent-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.accent-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.accent-swatch.selected {
+  border-color: var(--text);
+}
+
+#accent-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+#accent-custom {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+#accent-custom::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+#accent-custom::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
 }
 
 #player-bar {

@@ -38,7 +38,14 @@ const actionDeleteBtn = el('action-delete');
 const actionCancelBtn = el('action-cancel');
 const volumeEl = el('volume');
 const volumeBtn = el('volume-btn');
-const themeToggleBtn = el('theme-toggle-btn');
+const settingsBtn = el('settings-btn');
+const settingsSheet = el('settings-sheet');
+const settingsSheetBackdrop = el('settings-sheet-backdrop');
+const settingsCloseBtn = el('settings-close');
+const themeLightBtn = el('theme-light-btn');
+const themeDarkBtn = el('theme-dark-btn');
+const accentSwatchesEl = el('accent-swatches');
+const accentCustomInput = el('accent-custom');
 
 // ---- state ----
 let tracks = []; // full library, sorted
@@ -75,7 +82,10 @@ const ICONS = {
   grip: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
   sun: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
   moon: '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
 };
+
+const ACCENT_PRESETS = ['#f5a623', '#6c5ce7', '#3498db', '#2ecc71', '#e74c3c', '#9b59b6'];
 
 init();
 
@@ -86,18 +96,63 @@ function getTheme() {
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('theme', theme);
-  themeToggleBtn.innerHTML = theme === 'dark' ? ICONS.sun : ICONS.moon;
+  themeLightBtn.classList.toggle('selected', theme === 'light');
+  themeDarkBtn.classList.toggle('selected', theme === 'dark');
   const metaThemeColor = document.querySelector('meta[name="theme-color"]');
   if (metaThemeColor) metaThemeColor.setAttribute('content', theme === 'dark' ? '#1a1d21' : '#e0e5ec');
 }
 
-function toggleTheme() {
-  applyTheme(getTheme() === 'dark' ? 'light' : 'dark');
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `${r}, ${g}, ${b}`;
+}
+
+function applyAccent(hex) {
+  document.documentElement.style.setProperty('--accent', hex);
+  document.documentElement.style.setProperty('--accent-rgb', hexToRgb(hex));
+  localStorage.setItem('accentColor', hex);
+  accentCustomInput.value = hex;
+  renderAccentSwatches(hex);
+}
+
+function renderAccentSwatches(activeHex) {
+  accentSwatchesEl.innerHTML = '';
+  for (const hex of ACCENT_PRESETS) {
+    const swatch = document.createElement('button');
+    swatch.className = 'accent-swatch' + (hex.toLowerCase() === activeHex.toLowerCase() ? ' selected' : '');
+    swatch.style.background = hex;
+    swatch.title = hex;
+    swatch.addEventListener('click', () => applyAccent(hex));
+    accentSwatchesEl.appendChild(swatch);
+  }
+}
+
+function showSettingsSheet() {
+  settingsSheet.classList.remove('hidden');
+}
+
+function hideSettingsSheet() {
+  settingsSheet.classList.add('hidden');
 }
 
 async function init() {
+  settingsBtn.innerHTML = ICONS.gear;
+  themeLightBtn.innerHTML = `${ICONS.sun}<span>Light</span>`;
+  themeDarkBtn.innerHTML = `${ICONS.moon}<span>Dark</span>`;
+
   applyTheme(getTheme());
-  themeToggleBtn.addEventListener('click', toggleTheme);
+
+  const storedAccent = localStorage.getItem('accentColor');
+  applyAccent(storedAccent && /^#[0-9a-f]{6}$/i.test(storedAccent) ? storedAccent : ACCENT_PRESETS[0]);
+
+  settingsBtn.addEventListener('click', showSettingsSheet);
+  settingsSheetBackdrop.addEventListener('click', hideSettingsSheet);
+  settingsCloseBtn.addEventListener('click', hideSettingsSheet);
+  themeLightBtn.addEventListener('click', () => applyTheme('light'));
+  themeDarkBtn.addEventListener('click', () => applyTheme('dark'));
+  accentCustomInput.addEventListener('input', () => applyAccent(accentCustomInput.value));
 
   if (navigator.storage?.persist) {
     navigator.storage.persist().catch(() => {});
@@ -198,7 +253,9 @@ async function init() {
     removeTrack(id);
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !actionSheet.classList.contains('hidden')) hideActionSheet();
+    if (e.key !== 'Escape') return;
+    if (!actionSheet.classList.contains('hidden')) hideActionSheet();
+    if (!settingsSheet.classList.contains('hidden')) hideSettingsSheet();
   });
 }
 
