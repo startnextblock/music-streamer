@@ -7,10 +7,10 @@
     <link rel="icon" href="/music-streamer/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/music-streamer/icons/icon-192.png" />
     <title>Music Streamer</title>
-    <script type="module" crossorigin src="/music-streamer/assets/index-CxF-PnXg.js"></script>
+    <script type="module" crossorigin src="/music-streamer/assets/index-J5vvcbGY.js"></script>
     <link rel="modulepreload" crossorigin href="/music-streamer/assets/BasicParser-CQ38SJP4.js">
     <link rel="modulepreload" crossorigin href="/music-streamer/assets/Errors-DphxX0j4.js">
-    <link rel="stylesheet" crossorigin href="/music-streamer/assets/index-lUseGKc_.css">
+    <link rel="stylesheet" crossorigin href="/music-streamer/assets/index-CnOvxkAN.css">
   <link rel="manifest" href="/music-streamer/manifest.webmanifest"></head>
   <body>
     <div id="app">
@@ -62,6 +62,15 @@
     <input type="file" id="folder-input" webkitdirectory multiple hidden />
     <audio id="audio" preload="metadata"></audio>
     <div id="toast" role="status"></div>
+
+    <div id="action-sheet" class="hidden">
+      <div id="action-sheet-backdrop"></div>
+      <div id="action-sheet-panel">
+        <button id="action-rename" class="sheet-btn">Rename</button>
+        <button id="action-delete" class="sheet-btn danger">Delete</button>
+        <button id="action-cancel" class="sheet-btn cancel">Cancel</button>
+      </div>
+    </div>
 
   </body>
 </html>
