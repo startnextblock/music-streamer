@@ -7,6 +7,7 @@ registerSW({ immediate: true });
 
 // ---- DOM refs ----
 const el = (id) => document.getElementById(id);
+const libraryEl = el('library');
 const trackListEl = el('track-list');
 const emptyStateEl = el('empty-state');
 const searchEl = el('search');
@@ -128,6 +129,8 @@ async function init() {
   });
   volumeBtn.addEventListener('click', toggleMute);
 
+  window.addEventListener('resize', syncLibraryPadding);
+
   actionSheetBackdrop.addEventListener('click', hideActionSheet);
   actionCancelBtn.addEventListener('click', hideActionSheet);
   actionRenameBtn.addEventListener('click', () => {
@@ -169,6 +172,14 @@ function toggleMute() {
 
 function updateVolumeIcon() {
   volumeBtn.innerHTML = audio.volume === 0 ? ICONS.volumeMute : ICONS.volumeHigh;
+}
+
+// #player-bar is fixed to the viewport (not flex-in-flow) so Android's
+// dynamic toolbar/viewport-height changes during scroll can't drag it out of
+// view. That means the scrollable list needs matching bottom padding so its
+// last rows aren't hidden underneath the fixed bar.
+function syncLibraryPadding() {
+  libraryEl.style.paddingBottom = playerBar.classList.contains('hidden') ? '' : `${playerBar.offsetHeight}px`;
 }
 
 function sortTracks() {
@@ -361,6 +372,7 @@ async function removeTrack(id) {
     audio.removeAttribute('src');
     currentTrackId = null;
     playerBar.classList.add('hidden');
+    syncLibraryPadding();
   }
   render();
 }
@@ -388,6 +400,7 @@ function playTrackById(id) {
   updateSeekFill(0);
 
   playerBar.classList.remove('hidden');
+  syncLibraryPadding();
   npTitle.textContent = track.title;
 
   document.querySelectorAll('.track-row').forEach((r) => {
