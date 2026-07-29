@@ -43,7 +43,23 @@ let shuffle = false;
 let repeatMode = 'off'; // 'off' | 'all' | 'one'
 let seekDragging = false;
 
-const REPEAT_ICONS = { off: '🔁', all: '🔁', one: '🔂' };
+// Hand-drawn SF Symbols-style icons (stroke/fill, no external font/CDN) so
+// controls read as crisp vector glyphs instead of inconsistent emoji.
+const ICONS = {
+  shuffle:
+    '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M3 17h5.5a3 3 0 0 0 2.4-1.2L15 8"/><path d="M3 7h5.5a3 3 0 0 1 2.4 1.2L12 11"/><path d="M17 21l4-4-4-4"/><path d="M13 13l1.5 2.3A3 3 0 0 0 17 16.5H21"/></svg>',
+  prev: '<svg viewBox="0 0 24 24" width="25" height="25" fill="currentColor"><rect x="5" y="5" width="2.3" height="14" rx="1"/><path d="M18.4 5.2a1 1 0 0 1 1.5.85v11.9a1 1 0 0 1-1.5.85l-9.5-5.95a1 1 0 0 1 0-1.7z"/></svg>',
+  next: '<svg viewBox="0 0 24 24" width="25" height="25" fill="currentColor"><rect x="16.7" y="5" width="2.3" height="14" rx="1"/><path d="M5.6 5.2a1 1 0 0 0-1.5.85v11.9a1 1 0 0 0 1.5.85l9.5-5.95a1 1 0 0 0 0-1.7z"/></svg>',
+  play: '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M8 5.14a1 1 0 0 1 1.53-.85l10.9 6.86a1 1 0 0 1 0 1.7l-10.9 6.86A1 1 0 0 1 8 18.86z"/></svg>',
+  pause:
+    '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.3"/><rect x="13.5" y="5" width="4" height="14" rx="1.3"/></svg>',
+  repeat:
+    '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
+  repeatOne:
+    '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><text x="12" y="15.5" font-size="8" font-family="system-ui, sans-serif" font-weight="700" stroke="none" fill="currentColor" text-anchor="middle">1</text></svg>',
+  cross:
+    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+};
 
 init();
 
@@ -54,6 +70,12 @@ async function init() {
   tracks = await getAllTracks();
   sortTracks();
   render();
+
+  shuffleBtn.innerHTML = ICONS.shuffle;
+  prevBtn.innerHTML = ICONS.prev;
+  nextBtn.innerHTML = ICONS.next;
+  playBtn.innerHTML = ICONS.play;
+  repeatBtn.innerHTML = ICONS.repeat;
 
   addFilesBtn.addEventListener('click', () => fileInput.click());
   addFolderBtn.addEventListener('click', () => folderInput.click());
@@ -70,11 +92,12 @@ async function init() {
   audio.addEventListener('timeupdate', onTimeUpdate);
   audio.addEventListener('loadedmetadata', onLoadedMetadata);
   audio.addEventListener('ended', onEnded);
-  audio.addEventListener('play', () => (playBtn.textContent = '⏸'));
-  audio.addEventListener('pause', () => (playBtn.textContent = '▶'));
+  audio.addEventListener('play', () => (playBtn.innerHTML = ICONS.pause));
+  audio.addEventListener('pause', () => (playBtn.innerHTML = ICONS.play));
 
   seek.addEventListener('input', () => {
     seekDragging = true;
+    updateSeekFill((seek.value / 1000) * 100);
   });
   seek.addEventListener('change', () => {
     if (audio.duration) {
@@ -237,7 +260,7 @@ function renderTrackRow(track) {
 
   const del = document.createElement('button');
   del.className = 'track-delete';
-  del.textContent = '✕';
+  del.innerHTML = ICONS.cross;
   del.title = 'Remove from library';
   del.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -287,6 +310,8 @@ function playTrackById(id) {
   currentObjectUrl = URL.createObjectURL(track.blob);
   audio.src = currentObjectUrl;
   audio.play().catch(() => {});
+  seek.value = 0;
+  updateSeekFill(0);
 
   playerBar.classList.remove('hidden');
   npTitle.textContent = track.title;
@@ -362,7 +387,7 @@ function toggleShuffle() {
 
 function cycleRepeat() {
   repeatMode = repeatMode === 'off' ? 'all' : repeatMode === 'all' ? 'one' : 'off';
-  repeatBtn.textContent = REPEAT_ICONS[repeatMode];
+  repeatBtn.innerHTML = repeatMode === 'one' ? ICONS.repeatOne : ICONS.repeat;
   repeatBtn.classList.toggle('active', repeatMode !== 'off');
 }
 
@@ -373,9 +398,15 @@ function onLoadedMetadata() {
 function onTimeUpdate() {
   if (seekDragging) return;
   if (audio.duration) {
-    seek.value = Math.round((audio.currentTime / audio.duration) * 1000);
+    const percent = (audio.currentTime / audio.duration) * 100;
+    seek.value = Math.round(percent * 10);
+    updateSeekFill(percent);
   }
   timeCurrent.textContent = formatTime(audio.currentTime);
+}
+
+function updateSeekFill(percent) {
+  seek.style.background = `linear-gradient(to right, var(--accent) ${percent}%, var(--border) ${percent}%)`;
 }
 
 function formatTime(seconds) {
