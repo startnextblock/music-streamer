@@ -29,6 +29,11 @@ const importStatus = el('import-status');
 const importBarFill = el('import-bar-fill');
 const importText = el('import-text');
 const toast = el('toast');
+const actionSheet = el('action-sheet');
+const actionSheetBackdrop = el('action-sheet-backdrop');
+const actionRenameBtn = el('action-rename');
+const actionDeleteBtn = el('action-delete');
+const actionCancelBtn = el('action-cancel');
 
 // ---- state ----
 let tracks = []; // full library, sorted
@@ -39,6 +44,7 @@ let shuffleOrder = null; // ordered id list used when shuffle is on
 let shuffle = false;
 let repeatMode = 'off'; // 'off' | 'all' | 'one'
 let seekDragging = false;
+let actionSheetTrackId = null;
 
 // Hand-drawn SF Symbols-style icons (stroke/fill, no external font/CDN) so
 // controls read as crisp vector glyphs instead of inconsistent emoji.
@@ -54,8 +60,7 @@ const ICONS = {
     '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
   repeatOne:
     '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><text x="12" y="15.5" font-size="8" font-family="system-ui, sans-serif" font-weight="700" stroke="none" fill="currentColor" text-anchor="middle">1</text></svg>',
-  cross:
-    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  more: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>',
 };
 
 init();
@@ -102,6 +107,32 @@ async function init() {
     }
     seekDragging = false;
   });
+
+  actionSheetBackdrop.addEventListener('click', hideActionSheet);
+  actionCancelBtn.addEventListener('click', hideActionSheet);
+  actionRenameBtn.addEventListener('click', () => {
+    const id = actionSheetTrackId;
+    hideActionSheet();
+    startRename(id);
+  });
+  actionDeleteBtn.addEventListener('click', () => {
+    const id = actionSheetTrackId;
+    hideActionSheet();
+    removeTrack(id);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !actionSheet.classList.contains('hidden')) hideActionSheet();
+  });
+}
+
+function showActionSheet(trackId) {
+  actionSheetTrackId = trackId;
+  actionSheet.classList.remove('hidden');
+}
+
+function hideActionSheet() {
+  actionSheet.classList.add('hidden');
+  actionSheetTrackId = null;
 }
 
 function sortTracks() {
@@ -222,18 +253,68 @@ function renderTrackRow(track) {
   duration.className = 'track-duration';
   duration.textContent = formatTime(track.duration);
 
-  const del = document.createElement('button');
-  del.className = 'track-delete';
-  del.innerHTML = ICONS.cross;
-  del.title = 'Remove from library';
-  del.addEventListener('click', (e) => {
+  const moreBtn = document.createElement('button');
+  moreBtn.className = 'track-more';
+  moreBtn.innerHTML = ICONS.more;
+  moreBtn.title = 'Song options';
+  moreBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    removeTrack(track.id);
+    showActionSheet(track.id);
   });
 
-  li.append(meta, duration, del);
+  li.append(meta, duration, moreBtn);
   li.addEventListener('click', () => playTrackById(track.id));
   return li;
+}
+
+function startRename(trackId) {
+  const track = tracks.find((t) => t.id === trackId);
+  const row = trackListEl.querySelector(`.track-row[data-id="${trackId}"]`);
+  const titleEl = row?.querySelector('.track-title');
+  if (!track || !titleEl) return;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'track-title-input';
+  input.value = track.title;
+  input.maxLength = 200;
+  titleEl.replaceWith(input);
+  input.focus();
+  input.select();
+  input.addEventListener('click', (e) => e.stopPropagation());
+
+  let settled = false;
+  const commit = () => {
+    if (settled) return;
+    settled = true;
+    const newTitle = input.value.trim();
+    if (newTitle && newTitle !== track.title) {
+      renameTrack(trackId, newTitle);
+    } else {
+      render();
+    }
+  };
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      input.blur();
+    } else if (e.key === 'Escape') {
+      settled = true;
+      render();
+    }
+  });
+}
+
+async function renameTrack(id, newTitle) {
+  const track = tracks.find((t) => t.id === id);
+  if (!track) return;
+  track.title = newTitle;
+  const { id: _id, ...record } = track;
+  await saveTrack(id, record);
+  sortTracks();
+  render();
 }
 
 async function removeTrack(id) {

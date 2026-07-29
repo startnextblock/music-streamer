@@ -59,6 +59,15 @@
     <audio id="audio" preload="metadata"></audio>
     <div id="toast" role="status"></div>
 
+    <div id="action-sheet" class="hidden">
+      <div id="action-sheet-backdrop"></div>
+      <div id="action-sheet-panel">
+        <button id="action-rename" class="sheet-btn">Rename</button>
+        <button id="action-delete" class="sheet-btn danger">Delete</button>
+        <button id="action-cancel" class="sheet-btn cancel">Cancel</button>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

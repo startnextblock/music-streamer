@@ -198,7 +198,7 @@ button {
   flex-shrink: 0;
 }
 
-.track-delete {
+.track-more {
   background: none;
   border: none;
   color: var(--text-dim);
@@ -209,9 +209,76 @@ button {
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.track-delete:active {
+.track-more:active {
   color: var(--text);
   background: rgba(255, 255, 255, 0.06);
+}
+
+.track-title-input {
+  width: 100%;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--accent);
+  padding: 0 0 2px;
+  outline: none;
+}
+
+#action-sheet.hidden {
+  display: none;
+}
+
+#action-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+
+#action-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+#action-sheet-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elevated);
+  border-radius: 14px 14px 0 0;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  gap: 4px;
+}
+
+.sheet-btn {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 1rem;
+  padding: 14px 8px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.sheet-btn:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sheet-btn.danger {
+  color: #ff6b6b;
+}
+
+.sheet-btn.cancel {
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 14px;
+  border-radius: 0;
 }
 
 #player-bar {
