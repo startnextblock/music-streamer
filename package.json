@@ -1,0 +1,23 @@
+{
+  "name": "music-streamer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "make-cert": "node scripts/make-cert.js",
+    "make-icons": "node scripts/make-icons.js"
+  },
+  "devDependencies": {
+    "pngjs": "^7.0.0",
+    "selfsigned": "^5.5.0",
+    "vite": "^8.1.1"
+  },
+  "dependencies": {
+    "idb-keyval": "^6.3.0",
+    "music-metadata": "^11.14.0",
+    "vite-plugin-pwa": "^1.3.0"
+  }
+}
