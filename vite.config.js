@@ -46,7 +46,7 @@ export default defineConfig(({ command }) => ({
       injectRegister: false,
       // Precache the app shell so it loads with zero connectivity after first visit.
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       },
       manifest: {
         name: 'Music Streamer',
@@ -55,8 +55,8 @@ export default defineConfig(({ command }) => ({
         start_url: '.',
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#12111a',
-        theme_color: '#6c5ce7',
+        background_color: '#1a1d21',
+        theme_color: '#1a1d21',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
