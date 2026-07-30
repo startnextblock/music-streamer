@@ -47,24 +47,23 @@
     <link rel="icon" href="/music-streamer/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/music-streamer/icons/icon-192.png" />
     <title>Music Streamer</title>
-    <script type="module" crossorigin src="/music-streamer/assets/index-DyGJVL5n.js"></script>
+    <script type="module" crossorigin src="/music-streamer/assets/index-BUId1Iel.js"></script>
     <link rel="modulepreload" crossorigin href="/music-streamer/assets/BasicParser-CQ38SJP4.js">
     <link rel="modulepreload" crossorigin href="/music-streamer/assets/Errors-DphxX0j4.js">
-    <link rel="stylesheet" crossorigin href="/music-streamer/assets/index-DG8gernG.css">
+    <link rel="stylesheet" crossorigin href="/music-streamer/assets/index-CJS9eSW-.css">
   <link rel="manifest" href="/music-streamer/manifest.webmanifest"></head>
   <body>
     <div id="app">
       <header id="topbar">
         <div id="topbar-row1">
           <h1>Music</h1>
-          <button id="settings-btn" class="btn icon-btn" title="Settings"></button>
+          <div class="topbar-actions">
+            <button id="add-btn" class="btn icon-btn" title="Add music"></button>
+            <button id="settings-btn" class="btn icon-btn" title="Settings"></button>
+          </div>
         </div>
         <div id="topbar-row2">
           <input id="search" type="search" placeholder="Search library…" />
-          <div class="import-buttons">
-            <button id="add-files-btn" class="btn">＋ Files</button>
-            <button id="add-folder-btn" class="btn">＋ Folder</button>
-          </div>
         </div>
       </header>
 
@@ -120,6 +119,15 @@
         <button id="action-rename" class="sheet-btn">Rename</button>
         <button id="action-delete" class="sheet-btn danger">Delete</button>
         <button id="action-cancel" class="sheet-btn cancel">Cancel</button>
+      </div>
+    </div>
+
+    <div id="import-sheet" class="sheet-overlay hidden">
+      <div id="import-sheet-backdrop" class="sheet-backdrop"></div>
+      <div id="import-sheet-panel" class="sheet-panel">
+        <button id="import-files-option" class="sheet-btn">Add Files</button>
+        <button id="import-folder-option" class="sheet-btn">Add Folder</button>
+        <button id="import-cancel" class="sheet-btn cancel">Cancel</button>
       </div>
     </div>
 
