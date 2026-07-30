@@ -611,19 +611,19 @@ button {
 
 #player-bar {
   position: fixed;
-  left: 16px;
-  right: 16px;
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  left: 0;
+  right: 0;
+  bottom: 0;
   margin: 0 auto;
-  max-width: 600px;
+  max-width: 100%;
   z-index: 40;
   background: radial-gradient(circle at 50% 0%, rgba(var(--accent-rgb), 0.2) 0%, transparent 65%), var(--glass-bg-elevated);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
-  padding: 20px 22px;
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--glass-border-light);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), var(--shadow-player);
+  padding: 20px 22px calc(20px + env(safe-area-inset-bottom, 0px));
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  border: none;
+  box-shadow: 0 -10px 50px rgba(var(--accent-rgb), 0.2), var(--shadow-player);
 }
 
 #player-bar.hidden {

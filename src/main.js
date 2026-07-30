@@ -415,11 +415,8 @@ function syncLibraryPadding() {
   if (playerBar.classList.contains('hidden')) {
     libraryEl.style.paddingBottom = '16px';
   } else {
-    // The card now floats 16px above the screen edge (plus safe-area) rather
-    // than sitting flush against it, so the list needs to clear that gap too,
-    // not just the card's own height.
     const barHeight = playerBar.offsetHeight || 190;
-    libraryEl.style.paddingBottom = `${barHeight + 32}px`;
+    libraryEl.style.paddingBottom = `${barHeight + 8}px`;
   }
 }
 
