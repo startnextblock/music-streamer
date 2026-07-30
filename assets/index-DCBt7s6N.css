@@ -1216,25 +1216,21 @@ button {
 }
 
 /* Ultra-Translucent Liquid Glass Lens Play Button matching reference image */
+/* Solid accent fill rather than glass — backdrop-filter rendering proved too
+   inconsistent across devices/browsers for a control this small and this
+   central. A deterministic solid color also ties it into the same accent
+   language already used for active shuffle/repeat and the seek fill,
+   making it read as the player's primary action. */
 .ctrl.big {
   width: 64px;
   height: 64px;
   position: relative;
-  /* Deliberately not --glass-bg-elevated: that token is now opaque (fixed
-     dark/light color, tuned for full-size cards). On this small round
-     button that read as a flat disc in dark mode and blended into the
-     equally-opaque player bar in light mode, leaving only the border/shadow
-     ring visible. A dedicated, theme-independent light tint keeps it a
-     visibly translucent lens against either background. */
-  background: rgba(255, 255, 255, 0.16);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1.5px solid rgba(255, 255, 255, 0.65);
-  color: var(--text);
+  background: var(--accent);
+  border: none;
+  color: var(--accent-ink);
   border-radius: 50%;
-  box-shadow: inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.95), inset 0 -1.5px 0.5px 0 rgba(0, 0, 0, 0.5), 0 14px 36px -4px rgba(0, 0, 0, 0.5);
-  transition: transform var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
-  overflow: hidden;
+  box-shadow: 0 10px 28px -4px rgba(var(--accent-rgb), 0.5);
+  transition: transform var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
 }
 
 .ctrl.big:active {
