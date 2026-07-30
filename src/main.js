@@ -443,6 +443,22 @@ function nextOrderValue() {
   return tracks.length ? Math.max(...tracks.map((t) => t.order ?? 0)) + 1 : 0;
 }
 
+// crypto.randomUUID() only exists in secure contexts (HTTPS or localhost
+// specifically) — opening the dev server via its LAN IP (e.g. for phone
+// testing) is neither, which made every single import fail with no visible
+// error beyond a failure count. Falls back to a manually built ID so
+// LAN/plain-HTTP testing keeps working.
+function generateId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      // fall through
+    }
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 // ---- import ----
 async function importFiles(fileList) {
   const allFiles = Array.from(fileList);
@@ -483,10 +499,11 @@ async function importFiles(fileList) {
       const common = meta?.common ?? {};
       const format = meta?.format ?? {};
 
-      const id = crypto.randomUUID();
+      const id = generateId();
       const record = {
         name: file.name,
         title: common.title || stripExtension(file.name),
+        artist: common.artist || '',
         album: common.album || '',
         duration: format.duration || null,
         blob: file,
