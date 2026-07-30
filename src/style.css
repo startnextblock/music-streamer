@@ -104,6 +104,11 @@ button {
 #search {
   flex: 1;
   min-width: 0;
+  /* Compensates for the icon buttons' invisible 36px tap-target box —
+     without this, the visual gap to the icon glyph looks bigger than the
+     gap to the "Music" text on the left, even though the raw flex gap is
+     the same on both sides. */
+  margin-right: -8px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
