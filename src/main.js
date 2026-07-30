@@ -44,8 +44,12 @@ const settingsSheetBackdrop = el('settings-sheet-backdrop');
 const settingsCloseBtn = el('settings-close');
 const themeLightBtn = el('theme-light-btn');
 const themeDarkBtn = el('theme-dark-btn');
-const accentSwatchesEl = el('accent-swatches');
-const accentCustomInput = el('accent-custom');
+const accentPreviewEl = el('accent-preview');
+const hueTrackArea = el('hue-track-area');
+const hueThumb = el('hue-thumb');
+const satTrackArea = el('sat-track-area');
+const satTrack = el('sat-track');
+const satThumb = el('sat-thumb');
 
 // ---- state ----
 let tracks = []; // full library, sorted
@@ -59,6 +63,8 @@ let seekDragging = false;
 let actionSheetTrackId = null;
 let previousVolume = 1;
 let sortable = null;
+let currentHue = 35; // default: amber
+let currentSat = 90;
 
 // Hand-drawn SF Symbols-style icons (stroke/fill, no external font/CDN) so
 // controls read as crisp vector glyphs instead of inconsistent emoji.
@@ -85,8 +91,6 @@ const ICONS = {
   gear: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
 };
 
-const ACCENT_PRESETS = ['#f5a623', '#6c5ce7', '#3498db', '#2ecc71', '#e74c3c', '#9b59b6'];
-
 init();
 
 function getTheme() {
@@ -102,35 +106,118 @@ function applyTheme(theme) {
   if (metaThemeColor) metaThemeColor.setAttribute('content', theme === 'dark' ? '#1a1d21' : '#e0e5ec');
 }
 
-function hexToRgb(hex) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `${r}, ${g}, ${b}`;
+// Standard HSL->RGB conversion (h: 0-360, s/l: 0-100), used so --accent-rgb
+// stays available for the rgba()-based glow/tint effects elsewhere in the CSS.
+function hslToRgb(h, s, l) {
+  s /= 100;
+  l /= 100;
+  const k = (n) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
 }
 
-function applyAccent(hex) {
-  document.documentElement.style.setProperty('--accent', hex);
-  document.documentElement.style.setProperty('--accent-rgb', hexToRgb(hex));
-  localStorage.setItem('accentColor', hex);
-  accentCustomInput.value = hex;
-  renderAccentSwatches(hex);
+// Picks readable text/icon color for whatever accent hue is chosen — hues in
+// the yellow-to-cyan range (and any low-saturation/grayish color) read best
+// with dark text; everything else (blues, purples, reds) reads best with
+// white. Without this, accent buttons could end up with invisible dark-on-dark
+// or washed-out white-on-light text depending on what color gets picked.
+function computeAccentInk(hue, sat) {
+  const isLightHue = (hue > 25 && hue < 195) || sat < 30;
+  return isLightHue ? '#1a1d21' : '#ffffff';
 }
 
-function renderAccentSwatches(activeHex) {
-  accentSwatchesEl.innerHTML = '';
-  for (const hex of ACCENT_PRESETS) {
-    const swatch = document.createElement('button');
-    swatch.className = 'accent-swatch' + (hex.toLowerCase() === activeHex.toLowerCase() ? ' selected' : '');
-    swatch.style.background = hex;
-    swatch.title = hex;
-    swatch.addEventListener('click', () => applyAccent(hex));
-    accentSwatchesEl.appendChild(swatch);
+function applyAccentFromHueSat(hue, sat, { persist = true } = {}) {
+  currentHue = hue;
+  currentSat = sat;
+  const [r, g, b] = hslToRgb(hue, sat, 55);
+  const ink = computeAccentInk(hue, sat);
+
+  document.documentElement.style.setProperty('--accent', `rgb(${r}, ${g}, ${b})`);
+  document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
+  document.documentElement.style.setProperty('--accent-ink', ink);
+
+  accentPreviewEl.style.background = `rgb(${r}, ${g}, ${b})`;
+  satTrack.style.background = `linear-gradient(to right, hsl(${hue}, 0%, 55%), hsl(${hue}, 100%, 55%))`;
+
+  if (persist) {
+    localStorage.setItem('accentHue', String(hue));
+    localStorage.setItem('accentSat', String(sat));
   }
+}
+
+function positionThumb(thumbEl, trackEl, percent) {
+  const width = trackEl.getBoundingClientRect().width;
+  thumbEl.style.transform = `translateX(${percent * width - 11}px)`;
+}
+
+// The settings sheet starts hidden (display:none), so track widths read as 0
+// until it's actually shown — thumb positions must be (re)computed each time
+// it opens, after layout has happened (double rAF, matching the reference
+// implementation this was adapted from).
+function positionAccentThumbs() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      positionThumb(hueThumb, hueTrackArea, currentHue / 360);
+      positionThumb(satThumb, satTrackArea, currentSat / 100);
+    });
+  });
+}
+
+function updateHueFromClientX(clientX) {
+  const rect = hueTrackArea.getBoundingClientRect();
+  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+  const hue = Math.round((x / rect.width) * 360);
+  hueThumb.style.transform = `translateX(${x - 11}px)`;
+  applyAccentFromHueSat(hue, currentSat, { persist: false });
+}
+
+function updateSatFromClientX(clientX) {
+  const rect = satTrackArea.getBoundingClientRect();
+  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+  const sat = Math.round((x / rect.width) * 100);
+  satThumb.style.transform = `translateX(${x - 11}px)`;
+  applyAccentFromHueSat(currentHue, sat, { persist: false });
+}
+
+function clientXFromEvent(e) {
+  return e.touches ? e.touches[0].clientX : e.clientX;
+}
+
+function setupColorDrag(trackArea, onMove) {
+  let dragging = false;
+  let rafId = null;
+
+  const start = (e) => {
+    dragging = true;
+    onMove(clientXFromEvent(e));
+  };
+  const move = (e) => {
+    if (!dragging) return;
+    if (rafId) cancelAnimationFrame(rafId);
+    const clientX = clientXFromEvent(e);
+    rafId = requestAnimationFrame(() => {
+      onMove(clientX);
+      rafId = null;
+    });
+  };
+  const end = () => {
+    if (!dragging) return;
+    dragging = false;
+    applyAccentFromHueSat(currentHue, currentSat);
+  };
+
+  trackArea.addEventListener('mousedown', start);
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', end);
+  trackArea.addEventListener('touchstart', start, { passive: true });
+  document.addEventListener('touchmove', move, { passive: true });
+  document.addEventListener('touchend', end);
 }
 
 function showSettingsSheet() {
   settingsSheet.classList.remove('hidden');
+  positionAccentThumbs();
 }
 
 function hideSettingsSheet() {
@@ -144,15 +231,21 @@ async function init() {
 
   applyTheme(getTheme());
 
-  const storedAccent = localStorage.getItem('accentColor');
-  applyAccent(storedAccent && /^#[0-9a-f]{6}$/i.test(storedAccent) ? storedAccent : ACCENT_PRESETS[0]);
+  const storedHue = Number(localStorage.getItem('accentHue'));
+  const storedSat = Number(localStorage.getItem('accentSat'));
+  applyAccentFromHueSat(
+    Number.isFinite(storedHue) && storedHue >= 0 && storedHue <= 360 ? storedHue : currentHue,
+    Number.isFinite(storedSat) && storedSat >= 0 && storedSat <= 100 ? storedSat : currentSat,
+    { persist: false }
+  );
 
   settingsBtn.addEventListener('click', showSettingsSheet);
   settingsSheetBackdrop.addEventListener('click', hideSettingsSheet);
   settingsCloseBtn.addEventListener('click', hideSettingsSheet);
   themeLightBtn.addEventListener('click', () => applyTheme('light'));
   themeDarkBtn.addEventListener('click', () => applyTheme('dark'));
-  accentCustomInput.addEventListener('input', () => applyAccent(accentCustomInput.value));
+  setupColorDrag(hueTrackArea, updateHueFromClientX);
+  setupColorDrag(satTrackArea, updateSatFromClientX);
 
   if (navigator.storage?.persist) {
     navigator.storage.persist().catch(() => {});
