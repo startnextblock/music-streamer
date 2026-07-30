@@ -51,8 +51,7 @@
   <body>
     <div id="app">
       <header id="topbar">
-        <h1>Music</h1>
-        <input id="search" type="search" placeholder="Search library…" />
+        <input id="search" type="search" placeholder="" />
         <div class="topbar-actions">
           <button id="add-btn" class="btn icon-btn" title="Add music"></button>
           <button id="settings-btn" class="btn icon-btn" title="Settings"></button>
@@ -66,16 +65,19 @@
 
       <main id="library">
         <p id="empty-state">
-          Your library is empty. Tap <strong>＋ Files</strong> or <strong>＋ Folder</strong>
-          to import music from your phone's storage. Once imported, it's saved
-          on-device and plays with no internet connection needed.
+          Your library is empty. Tap <strong>＋</strong> to import music from your
+          phone's storage. Once imported, it's saved on-device and plays with no
+          internet connection needed.
         </p>
         <ul id="track-list"></ul>
       </main>
 
       <footer id="player-bar" class="hidden">
         <div id="now-playing">
-          <div id="np-title">—</div>
+          <div class="np-text-group">
+            <span id="np-title" class="np-title-text">—</span>
+            <span id="np-artist" class="np-artist-text">Unknown Artist</span>
+          </div>
         </div>
 
         <div id="seek-row">
@@ -87,9 +89,11 @@
         <div id="controls">
           <div id="transport">
             <button id="shuffle-btn" class="ctrl" title="Shuffle">🔀</button>
-            <button id="prev-btn" class="ctrl" title="Previous">⏮</button>
-            <button id="play-btn" class="ctrl big" title="Play/Pause">▶</button>
-            <button id="next-btn" class="ctrl" title="Next">⏭</button>
+            <div class="transport-core">
+              <button id="prev-btn" class="ctrl" title="Previous">⏮</button>
+              <button id="play-btn" class="ctrl big" title="Play/Pause">▶</button>
+              <button id="next-btn" class="ctrl" title="Next">⏭</button>
+            </div>
             <button id="repeat-btn" class="ctrl" title="Repeat">🔁</button>
           </div>
           <div id="volume-control">

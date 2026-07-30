@@ -18,6 +18,7 @@ const folderInput = el('folder-input');
 const audio = el('audio');
 const playerBar = el('player-bar');
 const npTitle = el('np-title');
+const npArtist = el('np-artist');
 const seek = el('seek');
 const timeCurrent = el('time-current');
 const timeTotal = el('time-total');
@@ -92,8 +93,8 @@ const ICONS = {
   grip: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
   sun: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
   moon: '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>',
-  gear: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
-  plus: '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
 };
 
 init();
@@ -105,8 +106,8 @@ function getTheme() {
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('theme', theme);
-  themeLightBtn.classList.toggle('selected', theme === 'light');
-  themeDarkBtn.classList.toggle('selected', theme === 'dark');
+  if (themeLightBtn) themeLightBtn.classList.toggle('selected', theme === 'light');
+  if (themeDarkBtn) themeDarkBtn.classList.toggle('selected', theme === 'dark');
   const metaThemeColor = document.querySelector('meta[name="theme-color"]');
   if (metaThemeColor) metaThemeColor.setAttribute('content', theme === 'dark' ? '#1a1d21' : '#e0e5ec');
 }
@@ -270,7 +271,8 @@ async function init() {
   render();
 
   sortable = Sortable.create(trackListEl, {
-    handle: '.track-grip',
+    delay: 300,
+    delayOnTouchOnly: true,
     animation: 150,
     chosenClass: 'track-row-dragging',
     onEnd: onDragEnd,
@@ -410,7 +412,12 @@ function updateVolumeIcon() {
 // view. That means the scrollable list needs matching bottom padding so its
 // last rows aren't hidden underneath the fixed bar.
 function syncLibraryPadding() {
-  libraryEl.style.paddingBottom = playerBar.classList.contains('hidden') ? '' : `${playerBar.offsetHeight}px`;
+  if (playerBar.classList.contains('hidden')) {
+    libraryEl.style.paddingBottom = '16px';
+  } else {
+    const barHeight = playerBar.offsetHeight || 190;
+    libraryEl.style.paddingBottom = `${barHeight + 8}px`;
+  }
 }
 
 function sortTracks() {
@@ -583,17 +590,15 @@ function renderTrackRow(track) {
   li.className = 'track-row' + (track.id === currentTrackId ? ' playing' : '');
   li.dataset.id = track.id;
 
-  const grip = document.createElement('span');
-  grip.className = 'track-grip';
-  grip.innerHTML = ICONS.grip;
-  grip.addEventListener('click', (e) => e.stopPropagation());
-
   const meta = document.createElement('div');
   meta.className = 'track-meta';
   const titleEl = document.createElement('div');
   titleEl.className = 'track-title';
   titleEl.textContent = track.title;
-  meta.append(titleEl);
+  const artistEl = document.createElement('div');
+  artistEl.className = 'track-artist';
+  artistEl.textContent = track.artist || 'Unknown Artist';
+  meta.append(titleEl, artistEl);
 
   const duration = document.createElement('span');
   duration.className = 'track-duration';
@@ -608,7 +613,7 @@ function renderTrackRow(track) {
     showActionSheet(track.id);
   });
 
-  li.append(grip, meta, duration, moreBtn);
+  li.append(meta, duration, moreBtn);
   li.addEventListener('click', () => playTrackById(track.id));
   return li;
 }
@@ -700,6 +705,7 @@ function playTrackById(id) {
   playerBar.classList.remove('hidden');
   syncLibraryPadding();
   npTitle.textContent = track.title;
+  npArtist.textContent = track.artist || 'Unknown Artist';
   updateMediaSessionMetadata(track);
   savePlaybackState();
 
@@ -770,6 +776,7 @@ function restorePlaybackState() {
   playerBar.classList.remove('hidden');
   syncLibraryPadding();
   npTitle.textContent = track.title;
+  npArtist.textContent = track.artist || 'Unknown Artist';
   updateMediaSessionMetadata(track);
   render();
 }
@@ -859,11 +866,11 @@ function onTimeUpdate() {
 }
 
 function updateSeekFill(percent) {
-  seek.style.background = `linear-gradient(to right, var(--accent) ${percent}%, var(--border) ${percent}%)`;
+  seek.style.setProperty('--val', percent + '%');
 }
 
 function updateVolumeFill() {
-  volumeEl.style.background = `linear-gradient(to right, var(--accent) ${volumeEl.value}%, var(--border) ${volumeEl.value}%)`;
+  volumeEl.style.setProperty('--val', volumeEl.value + '%');
 }
 
 function formatTime(seconds) {

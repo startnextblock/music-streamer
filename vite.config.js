@@ -5,8 +5,12 @@ import { readFileSync, existsSync } from 'node:fs';
 // Chrome only allows Service Worker registration / "Add to Home Screen"
 // installs on localhost or a trusted HTTPS origin — a plain http://<lan-ip>
 // address doesn't qualify. `npm run make-cert` generates certs/ once.
-const httpsConfig = existsSync('certs/cert.pem')
-  ? { key: readFileSync('certs/key.pem'), cert: readFileSync('certs/cert.pem') }
+const useHttps = process.env.USE_HTTPS === 'true';
+const httpsConfig = useHttps && existsSync('certs/cert.pem')
+  ? {
+      key: readFileSync('certs/key.pem'),
+      cert: readFileSync('certs/cert.pem') + (existsSync('certs/rootCA.pem') ? '\n' + readFileSync('certs/rootCA.pem') : ''),
+    }
   : undefined;
 
 // Serves certs/rootCA.pem at /rootCA.pem so the phone can download and
