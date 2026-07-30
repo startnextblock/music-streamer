@@ -41,8 +41,8 @@
 :root[data-theme="dark"] {
   --bg: #080a0d;
   --bg-elevated: rgba(18, 22, 28, 0.65);
-  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.04) 35%, rgba(0, 0, 0, 0.15) 75%, rgba(255, 255, 255, 0.1) 100%), rgba(255, 255, 255, 0.04);
-  --glass-bg-elevated: linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.05) 35%, rgba(0, 0, 0, 0.2) 75%, rgba(255, 255, 255, 0.15) 100%), rgba(255, 255, 255, 0.06);
+  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.04) 35%, rgba(0, 0, 0, 0.15) 75%, rgba(255, 255, 255, 0.1) 100%), rgba(18, 22, 28, 0.65);
+  --glass-bg-elevated: linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.05) 35%, rgba(0, 0, 0, 0.2) 75%, rgba(255, 255, 255, 0.15) 100%), rgba(18, 22, 28, 0.65);
   --glass-border: rgba(255, 255, 255, 0.45);
   --glass-border-light: rgba(255, 255, 255, 0.65);
   --shadow-glass: 0 24px 60px -10px rgba(0, 0, 0, 0.8), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.9), inset 0 -1.5px 0.5px 0 rgba(0, 0, 0, 0.25);
@@ -62,8 +62,8 @@
 :root[data-theme="light"] {
   --bg: #e2e8f0;
   --bg-elevated: rgba(248, 250, 252, 0.85);
-  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.6) 40%, rgba(226, 232, 240, 0.4) 100%), rgba(255, 255, 255, 0.65);
-  --glass-bg-elevated: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.7) 40%, rgba(226, 232, 240, 0.5) 100%), rgba(255, 255, 255, 0.78);
+  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.6) 40%, rgba(226, 232, 240, 0.4) 100%), rgba(248, 250, 252, 0.85);
+  --glass-bg-elevated: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.7) 40%, rgba(226, 232, 240, 0.5) 100%), rgba(248, 250, 252, 0.85);
   --glass-border: rgba(255, 255, 255, 0.95);
   --glass-border-light: rgba(255, 255, 255, 0.99);
   --shadow-glass: 0 16px 40px -10px rgba(15, 23, 42, 0.12), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.95), inset 0 -1.5px 0.5px 0 rgba(0, 0, 0, 0.12);
