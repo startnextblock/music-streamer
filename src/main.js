@@ -288,6 +288,7 @@ async function init() {
   audio.volume = Number.isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 1 ? savedVolume : 1;
   volumeEl.value = Math.round(audio.volume * 100);
   updateVolumeIcon();
+  updateVolumeFill();
 
   restorePlaybackState();
 
@@ -351,6 +352,7 @@ async function init() {
     audio.volume = volumeEl.value / 100;
     localStorage.setItem('volume', String(audio.volume));
     updateVolumeIcon();
+    updateVolumeFill();
   });
   volumeBtn.addEventListener('click', toggleMute);
 
@@ -396,6 +398,7 @@ function toggleMute() {
   volumeEl.value = Math.round(audio.volume * 100);
   localStorage.setItem('volume', String(audio.volume));
   updateVolumeIcon();
+  updateVolumeFill();
 }
 
 function updateVolumeIcon() {
@@ -857,6 +860,10 @@ function onTimeUpdate() {
 
 function updateSeekFill(percent) {
   seek.style.background = `linear-gradient(to right, var(--accent) ${percent}%, var(--border) ${percent}%)`;
+}
+
+function updateVolumeFill() {
+  volumeEl.style.background = `linear-gradient(to right, var(--accent) ${volumeEl.value}%, var(--border) ${volumeEl.value}%)`;
 }
 
 function formatTime(seconds) {
