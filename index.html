@@ -53,14 +53,13 @@
       <header id="topbar">
         <div id="topbar-row1">
           <h1>Music</h1>
-          <button id="settings-btn" class="btn icon-btn" title="Settings"></button>
+          <div class="topbar-actions">
+            <button id="add-btn" class="btn icon-btn" title="Add music"></button>
+            <button id="settings-btn" class="btn icon-btn" title="Settings"></button>
+          </div>
         </div>
         <div id="topbar-row2">
           <input id="search" type="search" placeholder="Search library…" />
-          <div class="import-buttons">
-            <button id="add-files-btn" class="btn">＋ Files</button>
-            <button id="add-folder-btn" class="btn">＋ Folder</button>
-          </div>
         </div>
       </header>
 
@@ -116,6 +115,15 @@
         <button id="action-rename" class="sheet-btn">Rename</button>
         <button id="action-delete" class="sheet-btn danger">Delete</button>
         <button id="action-cancel" class="sheet-btn cancel">Cancel</button>
+      </div>
+    </div>
+
+    <div id="import-sheet" class="sheet-overlay hidden">
+      <div id="import-sheet-backdrop" class="sheet-backdrop"></div>
+      <div id="import-sheet-panel" class="sheet-panel">
+        <button id="import-files-option" class="sheet-btn">Add Files</button>
+        <button id="import-folder-option" class="sheet-btn">Add Folder</button>
+        <button id="import-cancel" class="sheet-btn cancel">Cancel</button>
       </div>
     </div>
 

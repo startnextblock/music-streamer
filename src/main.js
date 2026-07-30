@@ -12,8 +12,7 @@ const libraryEl = el('library');
 const trackListEl = el('track-list');
 const emptyStateEl = el('empty-state');
 const searchEl = el('search');
-const addFilesBtn = el('add-files-btn');
-const addFolderBtn = el('add-folder-btn');
+const addBtn = el('add-btn');
 const fileInput = el('file-input');
 const folderInput = el('folder-input');
 const audio = el('audio');
@@ -50,6 +49,11 @@ const hueThumb = el('hue-thumb');
 const satTrackArea = el('sat-track-area');
 const satTrack = el('sat-track');
 const satThumb = el('sat-thumb');
+const importSheet = el('import-sheet');
+const importSheetBackdrop = el('import-sheet-backdrop');
+const importFilesOption = el('import-files-option');
+const importFolderOption = el('import-folder-option');
+const importCancelBtn = el('import-cancel');
 
 // ---- state ----
 let tracks = []; // full library, sorted
@@ -89,6 +93,7 @@ const ICONS = {
   sun: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
   moon: '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>',
   gear: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
 };
 
 init();
@@ -224,8 +229,17 @@ function hideSettingsSheet() {
   settingsSheet.classList.add('hidden');
 }
 
+function showImportSheet() {
+  importSheet.classList.remove('hidden');
+}
+
+function hideImportSheet() {
+  importSheet.classList.add('hidden');
+}
+
 async function init() {
   settingsBtn.innerHTML = ICONS.gear;
+  addBtn.innerHTML = ICONS.plus;
   themeLightBtn.innerHTML = `${ICONS.sun}<span>Light</span>`;
   themeDarkBtn.innerHTML = `${ICONS.moon}<span>Dark</span>`;
 
@@ -281,8 +295,17 @@ async function init() {
     if (document.hidden) savePlaybackState();
   });
 
-  addFilesBtn.addEventListener('click', () => fileInput.click());
-  addFolderBtn.addEventListener('click', () => folderInput.click());
+  addBtn.addEventListener('click', showImportSheet);
+  importSheetBackdrop.addEventListener('click', hideImportSheet);
+  importCancelBtn.addEventListener('click', hideImportSheet);
+  importFilesOption.addEventListener('click', () => {
+    hideImportSheet();
+    fileInput.click();
+  });
+  importFolderOption.addEventListener('click', () => {
+    hideImportSheet();
+    folderInput.click();
+  });
   fileInput.addEventListener('change', (e) => importFiles(e.target.files));
   folderInput.addEventListener('change', (e) => importFiles(e.target.files));
   searchEl.addEventListener('input', () => render());
@@ -349,6 +372,7 @@ async function init() {
     if (e.key !== 'Escape') return;
     if (!actionSheet.classList.contains('hidden')) hideActionSheet();
     if (!settingsSheet.classList.contains('hidden')) hideSettingsSheet();
+    if (!importSheet.classList.contains('hidden')) hideImportSheet();
   });
 }
 
@@ -469,8 +493,7 @@ async function importFiles(fileList) {
 }
 
 function setImporting(isImporting) {
-  addFilesBtn.disabled = isImporting;
-  addFolderBtn.disabled = isImporting;
+  addBtn.disabled = isImporting;
   importStatus.classList.toggle('hidden', !isImporting);
   if (isImporting) importBarFill.style.width = '0%';
 }

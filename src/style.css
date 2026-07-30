@@ -101,8 +101,7 @@ button {
 }
 
 #search {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -111,7 +110,7 @@ button {
   font-size: 15px;
 }
 
-.import-buttons {
+.topbar-actions {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
@@ -664,7 +663,6 @@ button {
 #repeat-btn.active {
   color: var(--accent);
   background: rgba(var(--accent-rgb), 0.25);
-  filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.9));
   animation: toggle-pop 0.3s ease;
 }
 
@@ -685,10 +683,8 @@ button {
   height: 66px;
   background: var(--accent);
   color: var(--accent-ink);
-  box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.45);
 }
 
 .ctrl.big:active {
   transform: scale(0.92);
-  box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.45);
 }
