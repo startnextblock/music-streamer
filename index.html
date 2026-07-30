@@ -47,16 +47,15 @@
     <link rel="icon" href="/music-streamer/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/music-streamer/icons/icon-192.png" />
     <title>Music Streamer</title>
-    <script type="module" crossorigin src="/music-streamer/assets/index-BoVornM0.js"></script>
+    <script type="module" crossorigin src="/music-streamer/assets/index-CFeUJhvj.js"></script>
     <link rel="modulepreload" crossorigin href="/music-streamer/assets/BasicParser-CQ38SJP4.js">
     <link rel="modulepreload" crossorigin href="/music-streamer/assets/Errors-DphxX0j4.js">
-    <link rel="stylesheet" crossorigin href="/music-streamer/assets/index-CPgkcSNB.css">
+    <link rel="stylesheet" crossorigin href="/music-streamer/assets/index-Dll5ZrM6.css">
   <link rel="manifest" href="/music-streamer/manifest.webmanifest"></head>
   <body>
     <div id="app">
       <header id="topbar">
-        <h1>Music</h1>
-        <input id="search" type="search" placeholder="Search library…" />
+        <input id="search" type="search" placeholder="" />
         <div class="topbar-actions">
           <button id="add-btn" class="btn icon-btn" title="Add music"></button>
           <button id="settings-btn" class="btn icon-btn" title="Settings"></button>
@@ -70,16 +69,19 @@
 
       <main id="library">
         <p id="empty-state">
-          Your library is empty. Tap <strong>＋ Files</strong> or <strong>＋ Folder</strong>
-          to import music from your phone's storage. Once imported, it's saved
-          on-device and plays with no internet connection needed.
+          Your library is empty. Tap <strong>＋</strong> to import music from your
+          phone's storage. Once imported, it's saved on-device and plays with no
+          internet connection needed.
         </p>
         <ul id="track-list"></ul>
       </main>
 
       <footer id="player-bar" class="hidden">
         <div id="now-playing">
-          <div id="np-title">—</div>
+          <div class="np-text-group">
+            <span id="np-title" class="np-title-text">—</span>
+            <span id="np-artist" class="np-artist-text">Unknown Artist</span>
+          </div>
         </div>
 
         <div id="seek-row">
@@ -91,9 +93,11 @@
         <div id="controls">
           <div id="transport">
             <button id="shuffle-btn" class="ctrl" title="Shuffle">🔀</button>
-            <button id="prev-btn" class="ctrl" title="Previous">⏮</button>
-            <button id="play-btn" class="ctrl big" title="Play/Pause">▶</button>
-            <button id="next-btn" class="ctrl" title="Next">⏭</button>
+            <div class="transport-core">
+              <button id="prev-btn" class="ctrl" title="Previous">⏮</button>
+              <button id="play-btn" class="ctrl big" title="Play/Pause">▶</button>
+              <button id="next-btn" class="ctrl" title="Next">⏭</button>
+            </div>
             <button id="repeat-btn" class="ctrl" title="Repeat">🔁</button>
           </div>
           <div id="volume-control">
@@ -156,6 +160,6 @@
         <button id="settings-close" class="sheet-btn cancel">Close</button>
       </div>
     </div>
-
+
   </body>
 </html>
