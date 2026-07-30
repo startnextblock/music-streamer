@@ -35,7 +35,7 @@
   --ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
 
   /* Crystal Clear Crystal Liquid Refraction (Zero Frosted Blur) */
-  --glass-blur: blur(2px) saturate(240%) contrast(110%) brightness(108%);
+  --glass-blur: blur(24px) saturate(240%) contrast(110%) brightness(108%);
 }
 
 :root[data-theme="dark"] {
@@ -45,8 +45,9 @@
   --glass-bg-elevated: linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.05) 35%, rgba(0, 0, 0, 0.2) 75%, rgba(255, 255, 255, 0.15) 100%), rgba(255, 255, 255, 0.06);
   --glass-border: rgba(255, 255, 255, 0.45);
   --glass-border-light: rgba(255, 255, 255, 0.65);
-  --shadow-glass: 0 24px 60px -10px rgba(0, 0, 0, 0.8), inset 0 2px 2px 0 rgba(255, 255, 255, 0.85), inset 0 -2px 2px 0 rgba(0, 0, 0, 0.5), inset 2px 0 3px 0 rgba(255, 255, 255, 0.3), inset -2px 0 3px 0 rgba(0, 0, 0, 0.3);
-  --shadow-player: 0 28px 70px -10px rgba(0, 0, 0, 0.85), inset 0 2.5px 2px 0 rgba(255, 255, 255, 0.95), inset 0 -2.5px 2px 0 rgba(0, 0, 0, 0.6), inset 2.5px 0 4px 0 rgba(255, 255, 255, 0.35), inset -2.5px 0 4px 0 rgba(0, 0, 0, 0.35);
+  --shadow-glass: 0 24px 60px -10px rgba(0, 0, 0, 0.8), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.9), inset 0 -1.5px 0.5px 0 rgba(0, 0, 0, 0.25);
+  --shadow-player: 0 28px 70px -10px rgba(0, 0, 0, 0.85), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.9), inset 0 -1.5px 0.5px 0 rgba(0, 0, 0, 0.25);
+  --shadow-player-drop: 0 -10px 50px rgba(0, 0, 0, 0.25);
   --accent: #f5a623;
   --accent-rgb: 245, 166, 35;
   --accent-ink: #1a1d21;
@@ -65,8 +66,9 @@
   --glass-bg-elevated: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.7) 40%, rgba(226, 232, 240, 0.5) 100%), rgba(255, 255, 255, 0.78);
   --glass-border: rgba(255, 255, 255, 0.95);
   --glass-border-light: rgba(255, 255, 255, 0.99);
-  --shadow-glass: 0 16px 40px -10px rgba(15, 23, 42, 0.12), inset 0 2px 2px 0 rgba(255, 255, 255, 0.98), inset 0 -2px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-player: 0 20px 50px -10px rgba(15, 23, 42, 0.15), inset 0 2.5px 2px 0 rgba(255, 255, 255, 0.99), inset 0 -2.5px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-glass: 0 16px 40px -10px rgba(15, 23, 42, 0.12), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.95), inset 0 -1.5px 0.5px 0 rgba(0, 0, 0, 0.12);
+  --shadow-player: 0 20px 50px -10px rgba(15, 23, 42, 0.15), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.95), inset 0 -1.5px 0.5px 0 rgba(0, 0, 0, 0.12);
+  --shadow-player-drop: 0 -6px 24px rgba(15, 23, 42, 0.1);
   --accent: #f5a623;
   --accent-rgb: 245, 166, 35;
   --accent-ink: #1a1d21;
@@ -74,7 +76,7 @@
   --text-dim: #475569;
   --border: rgba(15, 23, 42, 0.12);
   --search-bg: rgba(255, 255, 255, 0.55);
-  --bg-gradient: radial-gradient(ellipse at 80% 15%, rgba(var(--accent-rgb), 0.35) 0%, transparent 50%), radial-gradient(ellipse at 15% 85%, rgba(var(--accent-rgb), 0.25) 0%, transparent 55%), radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.95) 0%, transparent 85%);
+  --bg-gradient: radial-gradient(ellipse at 80% 15%, rgba(var(--accent-rgb), 0.15) 0%, transparent 50%), radial-gradient(ellipse at 15% 85%, rgba(var(--accent-rgb), 0.12) 0%, transparent 55%), radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.95) 0%, transparent 85%);
   color-scheme: light;
 }
 
@@ -97,6 +99,7 @@
   background: rgba(255, 255, 255, 0.3);
   border-radius: var(--radius-pill);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -146,12 +149,12 @@ button {
   background: radial-gradient(circle at 50% 100%, rgba(var(--accent-rgb), 0.2) 0%, transparent 65%), var(--glass-bg-elevated);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
-  border-bottom: 1px solid var(--glass-border-light);
+  border-bottom: 1.5px solid var(--glass-border-light);
   border-top: none;
   border-left: none;
   border-right: none;
   border-radius: 0;
-  box-shadow: inset 0 -1.5px 1px 0 rgba(255, 255, 255, 0.6), 0 8px 24px rgba(var(--accent-rgb), 0.15);
+  box-shadow: inset 0 -1px 1px 0 rgba(255, 255, 255, 0.6), 0 8px 24px rgba(var(--accent-rgb), 0.15);
   position: fixed;
   top: 0;
   left: 0;
@@ -159,50 +162,27 @@ button {
   z-index: 30;
 }
 
-#topbar::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1.5px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(0, 240, 255, 0.4) 25%, rgba(255, 220, 0, 0.35) 50%, rgba(255, 30, 90, 0.4) 75%, rgba(255, 255, 255, 0.5) 100%);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-  opacity: 0.65;
-}
-
-/* Soft ambient color bleed behind the floating player card — a blurred glow
-   sitting behind the glass, rather than a hard rainbow line traced along its
-   edge. Reads like light refracting through the card instead of a border. */
-#player-bar::before {
-  content: "";
-  position: absolute;
-  inset: -24px;
-  z-index: -1;
-  border-radius: inherit;
-  background: linear-gradient(
-    135deg,
-    rgba(0, 220, 255, 0.45) 0%,
-    rgba(255, 210, 0, 0.35) 35%,
-    rgba(255, 30, 90, 0.4) 70%,
-    rgba(150, 80, 255, 0.35) 100%
-  );
-  filter: blur(36px);
-  opacity: 0.55;
-  pointer-events: none;
+#app-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text);
 }
 
 #search {
   flex: 1;
   min-width: 0;
   margin-right: -4px;
+  appearance: none;
+  -webkit-appearance: none;
   background-color: rgba(0, 0, 0, 0.35);
   background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" width="16" height="16" fill="rgba(255,255,255,0.6)" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>');
   background-repeat: no-repeat;
   background-position: 12px center;
-  border: 1px solid var(--glass-border);
+  border: 1.5px solid var(--glass-border);
   border-radius: var(--radius-pill);
   color: var(--text);
   padding: 8px 14px 8px 36px;
@@ -211,6 +191,14 @@ button {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+}
+
+#search::-webkit-search-decoration,
+#search::-webkit-search-cancel-button,
+#search::-webkit-search-results-button,
+#search::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  display: none;
 }
 
 #search::placeholder {
@@ -278,7 +266,7 @@ button {
   gap: 10px;
   padding: 8px 16px;
   margin: 8px 16px 0;
-  border: 1px solid var(--glass-border);
+  border: 1.5px solid var(--glass-border);
   border-radius: var(--radius-md);
   background: var(--glass-bg-elevated);
   backdrop-filter: var(--glass-blur);
@@ -357,7 +345,7 @@ button {
   padding: 12px 18px;
   min-height: 58px;
   cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border);
   transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
@@ -371,11 +359,11 @@ button {
 }
 
 .track-row:active {
-  background: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--text) 12%, transparent);
 }
 
 .track-row.playing {
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--text) 5%, transparent);
 }
 
 .track-row.playing .track-title {
@@ -434,7 +422,7 @@ button {
 
 .track-more:active {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--text) 12%, transparent);
 }
 
 .track-title-input {
@@ -457,6 +445,37 @@ button {
   position: fixed;
   inset: 0;
   z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+/* Kept laid out (never display:none) so the backdrop blur and panel
+   transform can actually animate — the generic .hidden utility forces
+   display:none !important everywhere else, so this overrides it
+   specifically for sheets with equal !important but higher specificity.
+   The backdrop's blur radius and the panel's opacity/transform animate
+   independently (rather than fading the whole overlay's opacity as one
+   block), so the blur genuinely ramps up instead of an already-blurred
+   layer just popping in at reduced opacity. */
+.sheet-overlay.hidden {
+  display: flex !important;
+  pointer-events: none;
+}
+
+.sheet-overlay.hidden .sheet-backdrop {
+  background-color: rgba(0, 0, 0, 0);
+  /* blur(0px) minifies to the invalid "blur()" in production (esbuild's CSS
+     minifier bug), which browsers silently drop — use a non-zero value that
+     still reads as no blur but survives minification intact. */
+  backdrop-filter: blur(0.01px);
+  -webkit-backdrop-filter: blur(0.01px);
+}
+
+.sheet-overlay.hidden .sheet-panel {
+  opacity: 0;
+  transform: scale(0.92) translateY(16px);
 }
 
 .sheet-backdrop {
@@ -465,27 +484,28 @@ button {
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  transition: background-color var(--duration-base) var(--ease-standard), backdrop-filter var(--duration-base) var(--ease-standard), -webkit-backdrop-filter var(--duration-base) var(--ease-standard);
 }
 
 .sheet-panel {
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: 16px;
-  margin: 0 auto;
+  position: relative;
+  width: 100%;
   max-width: 600px;
   display: flex;
   flex-direction: column;
   background: var(--glass-bg-elevated);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border-light);
+  border: 1.5px solid var(--glass-border-light);
   border-radius: var(--radius-xl);
   padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
   gap: 4px;
   max-height: 80vh;
   overflow-y: auto;
   box-shadow: var(--shadow-glass);
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transition: transform var(--duration-base) var(--ease-standard), opacity var(--duration-base) var(--ease-standard);
 }
 
 .sheet-btn {
@@ -518,7 +538,221 @@ button {
   border-radius: 0;
 }
 
-#settings-sheet-panel h2 {
+#settings-close {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-top: none;
+  border: 1.5px solid var(--glass-border-light);
+  box-shadow: var(--shadow-glass);
+  margin-top: 8px;
+  padding: 14px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.hidden {
+  display: none !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--duration-base);
+  animation-timing-function: var(--ease-standard);
+}
+
+.empty-msg {
+  padding: 40px 24px 0;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+#library-root-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lib-nav-label {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.lib-nav-count {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.lib-nav-chevron {
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+}
+
+#playlist-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 4px 16px 0;
+}
+
+.playlist-card {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.9) 0%, rgba(var(--accent-rgb), 0.3) 100%);
+  border: 1.5px solid var(--glass-border);
+  box-shadow: var(--shadow-glass);
+  cursor: pointer;
+}
+
+.playlist-card-cover {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.playlist-card-more {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: none;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.playlist-card-info {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 12px 12px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 70%);
+  color: #ffffff;
+}
+
+.playlist-card-title {
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playlist-card-count {
+  font-size: 11px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.playlist-card-rename-input {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #ffffff;
+  padding: 0 0 2px;
+  outline: none;
+}
+
+#sub-header {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 18px 10px;
+}
+
+#sub-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sub-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  color: var(--text);
+  padding: 6px 10px 6px 4px;
+  min-height: 44px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+#sub-back-icon {
+  display: flex;
+  align-items: center;
+}
+
+#sub-back-label {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+#sub-header-title-row {
+  margin-top: 2px;
+}
+
+#sub-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  margin: 0;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#sub-subtitle {
+  display: block;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+#new-playlist-name-input,
+#edit-track-title-input,
+#edit-track-artist-input {
+  margin: 4px 0 20px;
+  font-size: 1rem;
+}
+
+.playlist-picker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.playlist-picker-check {
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+}
+
+.sheet-panel h2 {
   margin: 8px 0 16px;
   font-family: var(--font-display);
   font-size: 22px;
@@ -526,8 +760,25 @@ button {
   letter-spacing: -0.5px;
 }
 
-.settings-section {
+/* Nested inside the sheet panel, which already carries the diagonal glossy
+   gradient (--glass-bg-elevated) — reusing that same gradient here would
+   stack two overlapping sheens. Border/inset-highlight stay unified with
+   every other card; the background itself is flattened. */
+.settings-group {
   margin-bottom: 20px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px solid var(--glass-border-light);
+  box-shadow: var(--shadow-glass);
+}
+
+.settings-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-section:last-child {
+  border-bottom: none;
 }
 
 .settings-label {
@@ -540,35 +791,49 @@ button {
   margin-bottom: 10px;
 }
 
-#theme-picker {
-  display: flex;
-  gap: 8px;
-}
-
-.theme-option {
-  flex: 1;
+#theme-toggle-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 10px;
-  min-height: 44px;
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  color: var(--text-dim);
-  border: 1px solid var(--glass-border);
-  font-size: 15px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+  justify-content: space-between;
 }
 
-.theme-option.selected {
-  background: rgba(255, 255, 255, 0.18);
+#theme-toggle-label {
+  font-size: 15px;
+  font-weight: 500;
   color: var(--text);
-  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.ios-toggle {
+  width: 51px;
+  height: 31px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.15);
+  border: 1.5px solid var(--glass-border);
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background-color var(--duration-base) var(--ease-standard);
+}
+
+.ios-toggle.active {
+  background: var(--accent);
+}
+
+.ios-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+.ios-toggle.active .ios-toggle-knob {
+  transform: translateX(20px);
 }
 
 #accent-preview {
@@ -597,6 +862,36 @@ button {
   background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
 }
 
+#color-square-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 0.65;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin: 4px 0 24px;
+  touch-action: none;
+  cursor: pointer;
+  border: 1.5px solid var(--glass-border);
+}
+
+#color-square {
+  position: absolute;
+  inset: 0;
+}
+
+#color-square-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2.5px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+}
+
 .color-thumb {
   width: 22px;
   height: 22px;
@@ -617,13 +912,13 @@ button {
   margin: 0 auto;
   max-width: 100%;
   z-index: 40;
-  background: radial-gradient(circle at 50% 0%, rgba(var(--accent-rgb), 0.2) 0%, transparent 65%), var(--glass-bg-elevated);
+  background: var(--glass-bg-elevated);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   padding: 20px 22px calc(20px + env(safe-area-inset-bottom, 0px));
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  border-radius: 36px 36px 0 0;
   border: none;
-  box-shadow: 0 -10px 50px rgba(var(--accent-rgb), 0.2), var(--shadow-player);
+  box-shadow: var(--shadow-player-drop), var(--shadow-player);
 }
 
 #player-bar.hidden {
@@ -686,7 +981,7 @@ button {
   font-family: var(--font-display);
   font-size: 14px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-dim);
   width: 36px;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
@@ -717,19 +1012,19 @@ button {
   border-radius: 3px;
   background: linear-gradient(to right, var(--accent) var(--val, 0%), rgba(255, 255, 255, 0.25) var(--val, 0%));
   pointer-events: none;
+  z-index: 0;
 }
 
-/* Translucent Dark Glass Slider Thumb Sphere matching reference image */
 #seek::-webkit-slider-thumb {
   -webkit-appearance: none;
+  position: relative;
+  z-index: 1;
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: rgba(30, 35, 45, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1.5px solid rgba(255, 255, 255, 0.5);
-  box-shadow: inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1.5px 1px 0 rgba(0, 0, 0, 0.6), 0 4px 14px rgba(0, 0, 0, 0.6);
+  background: #ffffff;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
   transition: transform var(--duration-fast) var(--ease-standard);
 }
 
@@ -751,12 +1046,14 @@ button {
 }
 
 #seek::-moz-range-thumb {
+  position: relative;
+  z-index: 1;
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: rgba(30, 35, 45, 0.7);
-  border: 1.5px solid rgba(255, 255, 255, 0.5);
-  box-shadow: inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.7), inset 0 -1.5px 1px 0 rgba(0, 0, 0, 0.6), 0 4px 14px rgba(0, 0, 0, 0.6);
+  background: #ffffff;
+  border: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 #controls {
@@ -907,18 +1204,17 @@ button {
   width: 64px;
   height: 64px;
   position: relative;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.08) 40%, rgba(0, 0, 0, 0.25) 85%, rgba(255, 255, 255, 0.25) 100%), rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(16px) saturate(240%);
-  -webkit-backdrop-filter: blur(16px) saturate(240%);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  color: #ffffff;
+  background: var(--glass-bg-elevated);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1.5px solid rgba(255, 255, 255, 0.65);
+  color: var(--text);
   border-radius: 50%;
-  box-shadow: inset 0 2.5px 2px 0 rgba(255, 255, 255, 0.95), inset 0 -2.5px 2px 0 rgba(0, 0, 0, 0.5), 0 14px 36px -4px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.95), inset 0 -1.5px 0.5px 0 rgba(0, 0, 0, 0.5), 0 14px 36px -4px rgba(0, 0, 0, 0.5);
   transition: transform var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
   overflow: hidden;
 }
 
 .ctrl.big:active {
   transform: scale(0.92);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.15) 100%), rgba(255, 255, 255, 0.2);
 }

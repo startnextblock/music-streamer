@@ -1,6 +1,6 @@
 import './style.css';
 import { parseBlob } from 'music-metadata';
-import { getAllTracks, saveTrack, deleteTrack } from './db.js';
+import { getAllTracks, saveTrack, deleteTrack, getAllPlaylists, savePlaylist, deletePlaylist } from './db.js';
 import { registerSW } from 'virtual:pwa-register';
 import Sortable from 'sortablejs';
 
@@ -11,7 +11,9 @@ const el = (id) => document.getElementById(id);
 const libraryEl = el('library');
 const trackListEl = el('track-list');
 const emptyStateEl = el('empty-state');
+const appTitleEl = el('app-title');
 const searchEl = el('search');
+const searchBtn = el('search-btn');
 const addBtn = el('add-btn');
 const fileInput = el('file-input');
 const folderInput = el('folder-input');
@@ -42,19 +44,60 @@ const settingsBtn = el('settings-btn');
 const settingsSheet = el('settings-sheet');
 const settingsSheetBackdrop = el('settings-sheet-backdrop');
 const settingsCloseBtn = el('settings-close');
-const themeLightBtn = el('theme-light-btn');
-const themeDarkBtn = el('theme-dark-btn');
+const themeToggle = el('theme-toggle');
 const accentPreviewEl = el('accent-preview');
 const hueTrackArea = el('hue-track-area');
 const hueThumb = el('hue-thumb');
-const satTrackArea = el('sat-track-area');
-const satTrack = el('sat-track');
-const satThumb = el('sat-thumb');
+const colorSquareWrapEl = el('color-square-wrap');
+const colorSquareEl = el('color-square');
+const colorSquareThumbEl = el('color-square-thumb');
 const importSheet = el('import-sheet');
 const importSheetBackdrop = el('import-sheet-backdrop');
 const importFilesOption = el('import-files-option');
 const importFolderOption = el('import-folder-option');
 const importCancelBtn = el('import-cancel');
+
+const libraryRootEl = el('library-root');
+const libraryRootListEl = el('library-root-list');
+const subHeaderEl = el('sub-header');
+const subBackBtn = el('sub-back-btn');
+const subBackIconEl = el('sub-back-icon');
+const subBackLabelEl = el('sub-back-label');
+const subTitleEl = el('sub-title');
+const subSubtitleEl = el('sub-subtitle');
+const subActionBtn = el('sub-action-btn');
+const playlistListEl = el('playlist-list');
+const playlistsEmptyStateEl = el('playlists-empty-state');
+const playlistEmptyStateEl = el('playlist-empty-state');
+const actionAddToPlaylistBtn = el('action-add-to-playlist');
+const actionRemoveFromPlaylistBtn = el('action-remove-from-playlist');
+const newPlaylistSheet = el('new-playlist-sheet');
+const newPlaylistSheetBackdrop = el('new-playlist-sheet-backdrop');
+const newPlaylistNameInput = el('new-playlist-name-input');
+const newPlaylistCreateBtn = el('new-playlist-create-btn');
+const newPlaylistCancelBtn = el('new-playlist-cancel-btn');
+const playlistActionSheet = el('playlist-action-sheet');
+const playlistActionSheetBackdrop = el('playlist-action-sheet-backdrop');
+const playlistActionRenameBtn = el('playlist-action-rename');
+const playlistActionDeleteBtn = el('playlist-action-delete');
+const playlistActionCancelBtn = el('playlist-action-cancel');
+const playlistPickerSheet = el('playlist-picker-sheet');
+const playlistPickerSheetBackdrop = el('playlist-picker-sheet-backdrop');
+const playlistPickerListEl = el('playlist-picker-list');
+const playlistPickerNewBtn = el('playlist-picker-new-btn');
+const playlistPickerCloseBtn = el('playlist-picker-close-btn');
+const addTracksSheet = el('add-tracks-sheet');
+const addTracksSheetBackdrop = el('add-tracks-sheet-backdrop');
+const addTracksListEl = el('add-tracks-list');
+const addTracksCloseBtn = el('add-tracks-close-btn');
+const playlistActionCoverBtn = el('playlist-action-cover');
+const playlistCoverInput = el('playlist-cover-input');
+const editTrackSheet = el('edit-track-sheet');
+const editTrackSheetBackdrop = el('edit-track-sheet-backdrop');
+const editTrackTitleInput = el('edit-track-title-input');
+const editTrackArtistInput = el('edit-track-artist-input');
+const editTrackSaveBtn = el('edit-track-save-btn');
+const editTrackCancelBtn = el('edit-track-cancel-btn');
 
 // ---- state ----
 let tracks = []; // full library, sorted
@@ -70,6 +113,20 @@ let previousVolume = 1;
 let sortable = null;
 let currentHue = 35; // default: amber
 let currentSat = 90;
+let currentVal = 90;
+let activeQueue = []; // current play queue (unshuffled), whatever list play was triggered from
+
+let playlists = []; // { id, name, trackIds: [], order }
+let currentView = 'root'; // 'root' | 'songs' | 'playlists' | 'playlist-detail'
+let currentPlaylistId = null;
+let actionSheetPlaylistId = null;
+let playlistActionId = null; // playlist targeted by the playlist row's own action sheet
+let playlistPickerTrackId = null; // track targeted by the "Add to Playlist" sheet
+let pendingPickerTrackId = null; // remembers to reopen the picker after creating a playlist from within it
+let coverTargetPlaylistId = null; // playlist awaiting a cover image pick
+let editTrackId = null; // track targeted by the edit-song sheet
+let searchActive = false; // whether the topbar's search field is expanded (in place of the app title)
+const coverUrlCache = new Map(); // playlistId -> object URL, kept alive for the session, revoked on delete/replace
 
 // Hand-drawn SF Symbols-style icons (stroke/fill, no external font/CDN) so
 // controls read as crisp vector glyphs instead of inconsistent emoji.
@@ -91,10 +148,15 @@ const ICONS = {
   volumeMute:
     '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
   grip: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
-  sun: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
-  moon: '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>',
   gear: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   plus: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  back: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+  chevron:
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  search:
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>',
+  close: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  check: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
 };
 
 init();
@@ -106,55 +168,76 @@ function getTheme() {
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('theme', theme);
-  if (themeLightBtn) themeLightBtn.classList.toggle('selected', theme === 'light');
-  if (themeDarkBtn) themeDarkBtn.classList.toggle('selected', theme === 'dark');
+  themeToggle.classList.toggle('active', theme === 'dark');
+  themeToggle.setAttribute('aria-checked', theme === 'dark' ? 'true' : 'false');
   const metaThemeColor = document.querySelector('meta[name="theme-color"]');
   if (metaThemeColor) metaThemeColor.setAttribute('content', theme === 'dark' ? '#1a1d21' : '#e0e5ec');
 }
 
-// Standard HSL->RGB conversion (h: 0-360, s/l: 0-100), used so --accent-rgb
-// stays available for the rgba()-based glow/tint effects elsewhere in the CSS.
-function hslToRgb(h, s, l) {
+// Standard HSV->RGB conversion (h: 0-360, s/v: 0-100). HSV (rather than HSL)
+// is what maps naturally onto the saturation/brightness square: X = s, Y = v.
+function hsvToRgb(h, s, v) {
   s /= 100;
-  l /= 100;
-  const k = (n) => (n + h / 30) % 12;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-  return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+  v /= 100;
+  const c = v * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = v - c;
+  let r, g, b;
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
 }
 
-// Picks readable text/icon color for whatever accent hue is chosen — hues in
-// the yellow-to-cyan range (and any low-saturation/grayish color) read best
-// with dark text; everything else (blues, purples, reds) reads best with
-// white. Without this, accent buttons could end up with invisible dark-on-dark
-// or washed-out white-on-light text depending on what color gets picked.
-function computeAccentInk(hue, sat) {
+// Picks readable text/icon color for whatever accent color is chosen — dark
+// colors (low brightness) always need white text; among bright colors, hues
+// in the yellow-to-cyan range (and any low-saturation/grayish color) read
+// best with dark text, everything else reads best with white. Without this,
+// accent buttons could end up with invisible or washed-out text depending on
+// what color gets picked.
+function computeAccentInk(hue, sat, val) {
+  if (val < 55) return '#ffffff';
   const isLightHue = (hue > 25 && hue < 195) || sat < 30;
   return isLightHue ? '#1a1d21' : '#ffffff';
 }
 
-function applyAccentFromHueSat(hue, sat, { persist = true } = {}) {
+function applyAccentFromHSV(hue, sat, val, { persist = true } = {}) {
   currentHue = hue;
   currentSat = sat;
-  const [r, g, b] = hslToRgb(hue, sat, 55);
-  const ink = computeAccentInk(hue, sat);
+  currentVal = val;
+  const [r, g, b] = hsvToRgb(hue, sat, val);
+  const ink = computeAccentInk(hue, sat, val);
 
   document.documentElement.style.setProperty('--accent', `rgb(${r}, ${g}, ${b})`);
   document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
   document.documentElement.style.setProperty('--accent-ink', ink);
 
   accentPreviewEl.style.background = `rgb(${r}, ${g}, ${b})`;
-  satTrack.style.background = `linear-gradient(to right, hsl(${hue}, 0%, 55%), hsl(${hue}, 100%, 55%))`;
 
   if (persist) {
     localStorage.setItem('accentHue', String(hue));
     localStorage.setItem('accentSat', String(sat));
+    localStorage.setItem('accentVal', String(val));
   }
+}
+
+function updateColorSquareBackground(hue) {
+  colorSquareEl.style.background = `linear-gradient(to bottom, transparent, #000), linear-gradient(to right, #fff, hsl(${hue}, 100%, 50%))`;
 }
 
 function positionThumb(thumbEl, trackEl, percent) {
   const width = trackEl.getBoundingClientRect().width;
   thumbEl.style.transform = `translateX(${percent * width - 11}px)`;
+}
+
+function positionSquareThumb() {
+  const rect = colorSquareWrapEl.getBoundingClientRect();
+  const x = (currentSat / 100) * rect.width;
+  const y = (1 - currentVal / 100) * rect.height;
+  colorSquareThumbEl.style.transform = `translate(${x - 11}px, ${y - 11}px)`;
 }
 
 // The settings sheet starts hidden (display:none), so track widths read as 0
@@ -165,7 +248,8 @@ function positionAccentThumbs() {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       positionThumb(hueThumb, hueTrackArea, currentHue / 360);
-      positionThumb(satThumb, satTrackArea, currentSat / 100);
+      positionSquareThumb();
+      updateColorSquareBackground(currentHue);
     });
   });
 }
@@ -175,19 +259,27 @@ function updateHueFromClientX(clientX) {
   const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
   const hue = Math.round((x / rect.width) * 360);
   hueThumb.style.transform = `translateX(${x - 11}px)`;
-  applyAccentFromHueSat(hue, currentSat, { persist: false });
-}
-
-function updateSatFromClientX(clientX) {
-  const rect = satTrackArea.getBoundingClientRect();
-  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-  const sat = Math.round((x / rect.width) * 100);
-  satThumb.style.transform = `translateX(${x - 11}px)`;
-  applyAccentFromHueSat(currentHue, sat, { persist: false });
+  updateColorSquareBackground(hue);
+  applyAccentFromHSV(hue, currentSat, currentVal, { persist: false });
 }
 
 function clientXFromEvent(e) {
   return e.touches ? e.touches[0].clientX : e.clientX;
+}
+
+function clientPointFromEvent(e) {
+  const t = e.touches ? e.touches[0] : e;
+  return { x: t.clientX, y: t.clientY };
+}
+
+function updateSquareFromClientPoint({ x, y }) {
+  const rect = colorSquareWrapEl.getBoundingClientRect();
+  const px = Math.max(0, Math.min(x - rect.left, rect.width));
+  const py = Math.max(0, Math.min(y - rect.top, rect.height));
+  const sat = Math.round((px / rect.width) * 100);
+  const val = Math.round(100 - (py / rect.height) * 100);
+  colorSquareThumbEl.style.transform = `translate(${px - 11}px, ${py - 11}px)`;
+  applyAccentFromHSV(currentHue, sat, val, { persist: false });
 }
 
 function setupColorDrag(trackArea, onMove) {
@@ -210,13 +302,44 @@ function setupColorDrag(trackArea, onMove) {
   const end = () => {
     if (!dragging) return;
     dragging = false;
-    applyAccentFromHueSat(currentHue, currentSat);
+    applyAccentFromHSV(currentHue, currentSat, currentVal);
   };
 
   trackArea.addEventListener('mousedown', start);
   document.addEventListener('mousemove', move);
   document.addEventListener('mouseup', end);
   trackArea.addEventListener('touchstart', start, { passive: true });
+  document.addEventListener('touchmove', move, { passive: true });
+  document.addEventListener('touchend', end);
+}
+
+function setupSquareDrag(area, onMove) {
+  let dragging = false;
+  let rafId = null;
+
+  const start = (e) => {
+    dragging = true;
+    onMove(clientPointFromEvent(e));
+  };
+  const move = (e) => {
+    if (!dragging) return;
+    if (rafId) cancelAnimationFrame(rafId);
+    const point = clientPointFromEvent(e);
+    rafId = requestAnimationFrame(() => {
+      onMove(point);
+      rafId = null;
+    });
+  };
+  const end = () => {
+    if (!dragging) return;
+    dragging = false;
+    applyAccentFromHSV(currentHue, currentSat, currentVal);
+  };
+
+  area.addEventListener('mousedown', start);
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', end);
+  area.addEventListener('touchstart', start, { passive: true });
   document.addEventListener('touchmove', move, { passive: true });
   document.addEventListener('touchend', end);
 }
@@ -230,6 +353,27 @@ function hideSettingsSheet() {
   settingsSheet.classList.add('hidden');
 }
 
+function showSearch() {
+  searchActive = true;
+  appTitleEl.classList.add('hidden');
+  searchEl.classList.remove('hidden');
+  searchBtn.innerHTML = ICONS.close;
+  searchBtn.title = 'Close search';
+  requestAnimationFrame(() => searchEl.focus());
+}
+
+function hideSearch() {
+  searchActive = false;
+  searchEl.classList.add('hidden');
+  appTitleEl.classList.remove('hidden');
+  searchBtn.innerHTML = ICONS.search;
+  searchBtn.title = 'Search';
+  if (searchEl.value) {
+    searchEl.value = '';
+    if (currentView === 'songs') render();
+  }
+}
+
 function showImportSheet() {
   importSheet.classList.remove('hidden');
 }
@@ -241,26 +385,25 @@ function hideImportSheet() {
 async function init() {
   settingsBtn.innerHTML = ICONS.gear;
   addBtn.innerHTML = ICONS.plus;
-  themeLightBtn.innerHTML = `${ICONS.sun}<span>Light</span>`;
-  themeDarkBtn.innerHTML = `${ICONS.moon}<span>Dark</span>`;
 
   applyTheme(getTheme());
 
   const storedHue = Number(localStorage.getItem('accentHue'));
   const storedSat = Number(localStorage.getItem('accentSat'));
-  applyAccentFromHueSat(
+  const storedVal = Number(localStorage.getItem('accentVal'));
+  applyAccentFromHSV(
     Number.isFinite(storedHue) && storedHue >= 0 && storedHue <= 360 ? storedHue : currentHue,
     Number.isFinite(storedSat) && storedSat >= 0 && storedSat <= 100 ? storedSat : currentSat,
+    Number.isFinite(storedVal) && storedVal >= 0 && storedVal <= 100 ? storedVal : currentVal,
     { persist: false }
   );
 
   settingsBtn.addEventListener('click', showSettingsSheet);
   settingsSheetBackdrop.addEventListener('click', hideSettingsSheet);
   settingsCloseBtn.addEventListener('click', hideSettingsSheet);
-  themeLightBtn.addEventListener('click', () => applyTheme('light'));
-  themeDarkBtn.addEventListener('click', () => applyTheme('dark'));
+  themeToggle.addEventListener('click', () => applyTheme(getTheme() === 'dark' ? 'light' : 'dark'));
   setupColorDrag(hueTrackArea, updateHueFromClientX);
-  setupColorDrag(satTrackArea, updateSatFromClientX);
+  setupSquareDrag(colorSquareWrapEl, updateSquareFromClientPoint);
 
   if (navigator.storage?.persist) {
     navigator.storage.persist().catch(() => {});
@@ -268,7 +411,16 @@ async function init() {
   tracks = await getAllTracks();
   await migrateTrackOrder();
   sortTracks();
-  render();
+
+  playlists = await getAllPlaylists();
+  sortPlaylists();
+
+  subBackIconEl.innerHTML = ICONS.back;
+
+  // The very first render happens before the document's first paint, which
+  // is too early for a View Transition (it gets skipped with a rejection) —
+  // only subsequent user-triggered navigation should cross-fade.
+  renderLibraryViewImmediate();
 
   sortable = Sortable.create(trackListEl, {
     delay: 300,
@@ -312,6 +464,15 @@ async function init() {
   fileInput.addEventListener('change', (e) => importFiles(e.target.files));
   folderInput.addEventListener('change', (e) => importFiles(e.target.files));
   searchEl.addEventListener('input', () => render());
+  searchBtn.innerHTML = ICONS.search;
+  searchBtn.addEventListener('click', () => {
+    if (currentView !== 'songs') goToSongs();
+    if (searchActive) hideSearch();
+    else showSearch();
+  });
+  searchEl.addEventListener('blur', () => {
+    if (!searchEl.value.trim()) hideSearch();
+  });
 
   playBtn.addEventListener('click', togglePlay);
   prevBtn.addEventListener('click', playPrev);
@@ -365,23 +526,109 @@ async function init() {
   actionRenameBtn.addEventListener('click', () => {
     const id = actionSheetTrackId;
     hideActionSheet();
-    startRename(id);
+    showEditTrackSheet(id);
+  });
+  editTrackSheetBackdrop.addEventListener('click', hideEditTrackSheet);
+  editTrackCancelBtn.addEventListener('click', hideEditTrackSheet);
+  editTrackSaveBtn.addEventListener('click', saveEditTrack);
+  editTrackArtistInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveEditTrack();
+    }
   });
   actionDeleteBtn.addEventListener('click', () => {
     const id = actionSheetTrackId;
     hideActionSheet();
     removeTrack(id);
   });
+  actionAddToPlaylistBtn.addEventListener('click', () => {
+    const id = actionSheetTrackId;
+    hideActionSheet();
+    showPlaylistPickerSheet(id);
+  });
+  actionRemoveFromPlaylistBtn.addEventListener('click', () => {
+    const trackId = actionSheetTrackId;
+    const playlistId = actionSheetPlaylistId;
+    hideActionSheet();
+    removeTrackFromPlaylist(playlistId, trackId);
+  });
+
+  subBackBtn.addEventListener('click', goBack);
+
+  newPlaylistSheetBackdrop.addEventListener('click', hideNewPlaylistSheet);
+  newPlaylistCancelBtn.addEventListener('click', hideNewPlaylistSheet);
+  newPlaylistCreateBtn.addEventListener('click', createPlaylist);
+  newPlaylistNameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      createPlaylist();
+    }
+  });
+
+  playlistActionSheetBackdrop.addEventListener('click', hidePlaylistActionSheet);
+  playlistActionCancelBtn.addEventListener('click', hidePlaylistActionSheet);
+  playlistActionRenameBtn.addEventListener('click', () => {
+    const id = playlistActionId;
+    hidePlaylistActionSheet();
+    startPlaylistRename(id);
+  });
+  playlistActionDeleteBtn.addEventListener('click', () => {
+    const id = playlistActionId;
+    hidePlaylistActionSheet();
+    deletePlaylistById(id);
+  });
+  playlistActionCoverBtn.addEventListener('click', () => {
+    coverTargetPlaylistId = playlistActionId;
+    hidePlaylistActionSheet();
+    playlistCoverInput.click();
+  });
+  playlistCoverInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    playlistCoverInput.value = '';
+    const playlistId = coverTargetPlaylistId;
+    coverTargetPlaylistId = null;
+    if (!file || !playlistId) return;
+
+    const pl = playlists.find((p) => p.id === playlistId);
+    if (!pl) return;
+    revokeCoverUrl(pl.id);
+    pl.cover = file;
+    await persistPlaylist(pl);
+    if (currentView === 'playlists') renderPlaylistsList();
+  });
+
+  playlistPickerSheetBackdrop.addEventListener('click', hidePlaylistPickerSheet);
+  playlistPickerCloseBtn.addEventListener('click', hidePlaylistPickerSheet);
+  playlistPickerNewBtn.addEventListener('click', () => {
+    pendingPickerTrackId = playlistPickerTrackId;
+    hidePlaylistPickerSheet();
+    showNewPlaylistSheet();
+  });
+
+  addTracksSheetBackdrop.addEventListener('click', hideAddTracksSheet);
+  addTracksCloseBtn.addEventListener('click', hideAddTracksSheet);
+
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (!actionSheet.classList.contains('hidden')) hideActionSheet();
     if (!settingsSheet.classList.contains('hidden')) hideSettingsSheet();
     if (!importSheet.classList.contains('hidden')) hideImportSheet();
+    if (!newPlaylistSheet.classList.contains('hidden')) hideNewPlaylistSheet();
+    if (!playlistActionSheet.classList.contains('hidden')) hidePlaylistActionSheet();
+    if (!playlistPickerSheet.classList.contains('hidden')) hidePlaylistPickerSheet();
+    if (!addTracksSheet.classList.contains('hidden')) hideAddTracksSheet();
+    if (!editTrackSheet.classList.contains('hidden')) hideEditTrackSheet();
   });
 }
 
-function showActionSheet(trackId) {
+function showActionSheet(trackId, { context = 'library', playlistId = null } = {}) {
   actionSheetTrackId = trackId;
+  actionSheetPlaylistId = playlistId;
+  actionRenameBtn.classList.toggle('hidden', context === 'playlist');
+  actionDeleteBtn.classList.toggle('hidden', context === 'playlist');
+  actionAddToPlaylistBtn.classList.toggle('hidden', context === 'playlist');
+  actionRemoveFromPlaylistBtn.classList.toggle('hidden', context !== 'playlist');
   actionSheet.classList.remove('hidden');
 }
 
@@ -441,6 +688,250 @@ async function migrateTrackOrder() {
 
 function nextOrderValue() {
   return tracks.length ? Math.max(...tracks.map((t) => t.order ?? 0)) + 1 : 0;
+}
+
+function sortPlaylists() {
+  playlists.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
+function nextPlaylistOrderValue() {
+  return playlists.length ? Math.max(...playlists.map((p) => p.order ?? 0)) + 1 : 0;
+}
+
+async function persistPlaylist(playlist) {
+  const { id, ...record } = playlist;
+  await savePlaylist(id, record);
+}
+
+function showNewPlaylistSheet() {
+  newPlaylistNameInput.value = '';
+  newPlaylistSheet.classList.remove('hidden');
+  requestAnimationFrame(() => newPlaylistNameInput.focus());
+}
+
+function hideNewPlaylistSheet() {
+  newPlaylistSheet.classList.add('hidden');
+  pendingPickerTrackId = null;
+}
+
+async function createPlaylist() {
+  const name = newPlaylistNameInput.value.trim();
+  if (!name) return;
+
+  const id = generateId();
+  const record = { name, trackIds: [], cover: null, order: nextPlaylistOrderValue() };
+  await savePlaylist(id, record);
+  playlists.push({ id, ...record });
+  sortPlaylists();
+  newPlaylistSheet.classList.add('hidden');
+
+  if (pendingPickerTrackId) {
+    const trackId = pendingPickerTrackId;
+    pendingPickerTrackId = null;
+    await toggleTrackInPlaylist(id, trackId);
+    showPlaylistPickerSheet(trackId);
+  } else if (currentView === 'playlists') {
+    renderPlaylistsList();
+  }
+  showToast(`Created "${name}"`);
+}
+
+function showPlaylistActionSheet(id) {
+  playlistActionId = id;
+  playlistActionSheet.classList.remove('hidden');
+}
+
+function hidePlaylistActionSheet() {
+  playlistActionSheet.classList.add('hidden');
+  playlistActionId = null;
+}
+
+function startPlaylistRename(playlistId) {
+  const pl = playlists.find((p) => p.id === playlistId);
+  const card = playlistListEl.querySelector(`.playlist-card[data-id="${playlistId}"]`);
+  const titleEl = card?.querySelector('.playlist-card-title');
+  if (!pl || !titleEl) return;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'playlist-card-rename-input';
+  input.value = pl.name;
+  input.maxLength = 100;
+  titleEl.replaceWith(input);
+  input.focus();
+  input.select();
+  input.addEventListener('click', (e) => e.stopPropagation());
+
+  let settled = false;
+  const commit = async () => {
+    if (settled) return;
+    settled = true;
+    const newName = input.value.trim();
+    if (newName && newName !== pl.name) {
+      pl.name = newName;
+      await persistPlaylist(pl);
+    }
+    renderPlaylistsList();
+  };
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      input.blur();
+    } else if (e.key === 'Escape') {
+      settled = true;
+      renderPlaylistsList();
+    }
+  });
+}
+
+async function deletePlaylistById(id) {
+  await deletePlaylist(id);
+  revokeCoverUrl(id);
+  playlists = playlists.filter((p) => p.id !== id);
+  if (currentPlaylistId === id) closePlaylistDetail();
+  else renderPlaylistsList();
+}
+
+function getCoverUrl(playlist) {
+  if (!playlist.cover) return null;
+  let url = coverUrlCache.get(playlist.id);
+  if (!url) {
+    url = URL.createObjectURL(playlist.cover);
+    coverUrlCache.set(playlist.id, url);
+  }
+  return url;
+}
+
+function revokeCoverUrl(id) {
+  const url = coverUrlCache.get(id);
+  if (url) {
+    URL.revokeObjectURL(url);
+    coverUrlCache.delete(id);
+  }
+}
+
+function showPlaylistPickerSheet(trackId) {
+  playlistPickerTrackId = trackId;
+  renderPlaylistPickerList(trackId);
+  playlistPickerSheet.classList.remove('hidden');
+}
+
+function hidePlaylistPickerSheet() {
+  playlistPickerSheet.classList.add('hidden');
+  playlistPickerTrackId = null;
+}
+
+function renderPlaylistPickerList(trackId) {
+  playlistPickerListEl.innerHTML = '';
+  if (!playlists.length) {
+    const empty = document.createElement('p');
+    empty.className = 'settings-label';
+    empty.textContent = 'No playlists yet.';
+    playlistPickerListEl.appendChild(empty);
+    return;
+  }
+  for (const pl of playlists) {
+    playlistPickerListEl.appendChild(buildPickerRow(pl, trackId, () => toggleTrackInPlaylist(pl.id, trackId).then(() => renderPlaylistPickerList(trackId))));
+  }
+}
+
+function showAddTracksSheet(playlistId) {
+  renderAddTracksList(playlistId);
+  addTracksSheet.classList.remove('hidden');
+}
+
+function hideAddTracksSheet() {
+  addTracksSheet.classList.add('hidden');
+}
+
+function renderAddTracksList(playlistId) {
+  const pl = playlists.find((p) => p.id === playlistId);
+  addTracksListEl.innerHTML = '';
+  if (!tracks.length) {
+    const empty = document.createElement('p');
+    empty.className = 'settings-label';
+    empty.textContent = 'Your library is empty.';
+    addTracksListEl.appendChild(empty);
+    return;
+  }
+  for (const track of tracks) {
+    addTracksListEl.appendChild(
+      buildPickerRow({ id: playlistId, name: track.title, trackIds: pl?.trackIds || [] }, track.id, async () => {
+        await toggleTrackInPlaylist(playlistId, track.id);
+        renderAddTracksList(playlistId);
+        if (currentView === 'playlist-detail') renderPlaylistDetail();
+      })
+    );
+  }
+}
+
+// Shared row builder for both the "Add to Playlist" picker (rows = playlists,
+// checked if the given track is already a member) and the "Add Songs" picker
+// (rows = tracks, checked if already a member of the given playlist).
+function buildPickerRow(entry, memberId, onToggle) {
+  const btn = document.createElement('button');
+  btn.className = 'sheet-btn playlist-picker-row';
+  const nameSpan = document.createElement('span');
+  nameSpan.textContent = entry.name;
+  btn.appendChild(nameSpan);
+  if (entry.trackIds.includes(memberId)) {
+    const check = document.createElement('span');
+    check.className = 'playlist-picker-check';
+    check.innerHTML = ICONS.check;
+    btn.appendChild(check);
+  }
+  btn.addEventListener('click', onToggle);
+  return btn;
+}
+
+async function toggleTrackInPlaylist(playlistId, trackId) {
+  const pl = playlists.find((p) => p.id === playlistId);
+  if (!pl) return;
+  const idx = pl.trackIds.indexOf(trackId);
+  if (idx === -1) pl.trackIds.push(trackId);
+  else pl.trackIds.splice(idx, 1);
+  await persistPlaylist(pl);
+  if (currentView === 'playlists') renderPlaylistsList();
+}
+
+async function removeTrackFromPlaylist(playlistId, trackId) {
+  const pl = playlists.find((p) => p.id === playlistId);
+  if (!pl) return;
+  pl.trackIds = pl.trackIds.filter((id) => id !== trackId);
+  await persistPlaylist(pl);
+  if (currentView === 'playlist-detail' && currentPlaylistId === playlistId) renderPlaylistDetail();
+}
+
+function goToSongs() {
+  currentView = 'songs';
+  renderLibraryView();
+}
+
+function goToPlaylists() {
+  currentView = 'playlists';
+  renderLibraryView();
+}
+
+function openPlaylistDetail(id) {
+  currentPlaylistId = id;
+  currentView = 'playlist-detail';
+  renderLibraryView();
+}
+
+function closePlaylistDetail() {
+  currentPlaylistId = null;
+  currentView = 'playlists';
+  renderLibraryView();
+}
+
+function goBack() {
+  if (currentView === 'playlist-detail') closePlaylistDetail();
+  else {
+    currentView = 'root';
+    renderLibraryView();
+  }
 }
 
 // crypto.randomUUID() only exists in secure contexts (HTTPS or localhost
@@ -557,6 +1048,104 @@ function stripExtension(name) {
 }
 
 // ---- rendering ----
+// Top-level dispatcher across the library's navigation stack: a root screen
+// (Songs / Playlists as grouped rows, Apple Music Library-tab style), the
+// flat song list, the playlist list, and a single playlist's track list.
+// Keeping this as one switchboard (rather than scattering view checks
+// through render()) is what lets back-navigation stay a simple state + re-render.
+// Wrapped in a View Transition (when supported) so switching between these
+// screens cross-fades instead of snapping instantly.
+function renderLibraryView() {
+  // Skipped transitions (e.g. document not visible yet) reject their
+  // promises asynchronously rather than throwing synchronously — this is
+  // pure progressive enhancement, so those rejections are swallowed rather
+  // than surfacing as unhandled-rejection noise.
+  if (document.startViewTransition && document.visibilityState === 'visible') {
+    const transition = document.startViewTransition(() => renderLibraryViewImmediate());
+    transition.ready.catch(() => {});
+    transition.finished.catch(() => {});
+    transition.updateCallbackDone.catch(() => {});
+    return;
+  }
+  renderLibraryViewImmediate();
+}
+
+function renderLibraryViewImmediate() {
+  const isRoot = currentView === 'root';
+  const isSongs = currentView === 'songs';
+  const isPlaylists = currentView === 'playlists';
+  const isDetail = currentView === 'playlist-detail';
+
+  libraryRootEl.classList.toggle('hidden', !isRoot);
+  subHeaderEl.classList.toggle('hidden', isRoot);
+  if (!isSongs && searchActive) hideSearch();
+
+  trackListEl.classList.toggle('hidden', !(isSongs || isDetail));
+  playlistListEl.classList.toggle('hidden', !isPlaylists);
+  emptyStateEl.style.display = 'none';
+  playlistsEmptyStateEl.classList.add('hidden');
+  playlistEmptyStateEl.classList.add('hidden');
+
+  if (isRoot) {
+    renderLibraryRoot();
+    return;
+  }
+
+  if (isSongs) {
+    subBackLabelEl.textContent = 'Library';
+    subTitleEl.textContent = 'Songs';
+    subSubtitleEl.textContent = `${tracks.length} song${tracks.length === 1 ? '' : 's'}`;
+    subActionBtn.classList.add('hidden');
+    emptyStateEl.style.display = tracks.length ? 'none' : 'block';
+    render();
+  } else if (isPlaylists) {
+    subBackLabelEl.textContent = 'Library';
+    subTitleEl.textContent = 'Playlists';
+    subSubtitleEl.textContent = `${playlists.length} playlist${playlists.length === 1 ? '' : 's'}`;
+    subActionBtn.classList.remove('hidden');
+    subActionBtn.title = 'New playlist';
+    subActionBtn.innerHTML = ICONS.plus;
+    subActionBtn.onclick = showNewPlaylistSheet;
+    if (sortable) sortable.option('disabled', true);
+    renderPlaylistsList();
+  } else {
+    subBackLabelEl.textContent = 'Playlists';
+    subActionBtn.classList.remove('hidden');
+    subActionBtn.title = 'Add songs';
+    subActionBtn.innerHTML = ICONS.plus;
+    subActionBtn.onclick = () => showAddTracksSheet(currentPlaylistId);
+    if (sortable) sortable.option('disabled', true);
+    renderPlaylistDetail();
+  }
+}
+
+function renderLibraryRoot() {
+  libraryRootListEl.innerHTML = '';
+  libraryRootListEl.appendChild(buildNavRow('Songs', tracks.length, goToSongs));
+  libraryRootListEl.appendChild(buildNavRow('Playlists', playlists.length, goToPlaylists));
+}
+
+function buildNavRow(label, count, onClick) {
+  const li = document.createElement('li');
+  li.className = 'track-row lib-nav-row';
+
+  const titleEl = document.createElement('span');
+  titleEl.className = 'lib-nav-label';
+  titleEl.textContent = label;
+
+  const countEl = document.createElement('span');
+  countEl.className = 'lib-nav-count';
+  countEl.textContent = String(count);
+
+  const chevron = document.createElement('span');
+  chevron.className = 'lib-nav-chevron';
+  chevron.innerHTML = ICONS.chevron;
+
+  li.append(titleEl, countEl, chevron);
+  li.addEventListener('click', onClick);
+  return li;
+}
+
 function render() {
   const query = searchEl.value.trim().toLowerCase();
   visibleTracks = query
@@ -574,6 +1163,79 @@ function render() {
   const frag = document.createDocumentFragment();
   for (const track of visibleTracks) {
     frag.appendChild(renderTrackRow(track));
+  }
+  trackListEl.appendChild(frag);
+}
+
+function renderPlaylistsList() {
+  playlistListEl.innerHTML = '';
+  playlistsEmptyStateEl.classList.toggle('hidden', playlists.length > 0);
+  const frag = document.createDocumentFragment();
+  for (const pl of playlists) {
+    frag.appendChild(renderPlaylistCard(pl));
+  }
+  playlistListEl.appendChild(frag);
+}
+
+function renderPlaylistCard(playlist) {
+  const li = document.createElement('li');
+  li.className = 'playlist-card';
+  li.dataset.id = playlist.id;
+
+  const cover = document.createElement('div');
+  cover.className = 'playlist-card-cover';
+  const coverUrl = getCoverUrl(playlist);
+  if (coverUrl) cover.style.backgroundImage = `url(${coverUrl})`;
+
+  const moreBtn = document.createElement('button');
+  moreBtn.className = 'playlist-card-more';
+  moreBtn.innerHTML = ICONS.more;
+  moreBtn.title = 'Playlist options';
+  moreBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showPlaylistActionSheet(playlist.id);
+  });
+
+  const info = document.createElement('div');
+  info.className = 'playlist-card-info';
+  const titleEl = document.createElement('div');
+  titleEl.className = 'playlist-card-title';
+  titleEl.textContent = playlist.name;
+  const countEl = document.createElement('div');
+  countEl.className = 'playlist-card-count';
+  const count = playlist.trackIds.length;
+  countEl.textContent = `${count} song${count === 1 ? '' : 's'}`;
+  info.append(titleEl, countEl);
+
+  li.append(cover, moreBtn, info);
+  li.addEventListener('click', () => openPlaylistDetail(playlist.id));
+  return li;
+}
+
+function renderPlaylistDetail() {
+  const pl = playlists.find((p) => p.id === currentPlaylistId);
+  if (!pl) {
+    closePlaylistDetail();
+    return;
+  }
+  subTitleEl.textContent = pl.name;
+
+  const byId = new Map(tracks.map((t) => [t.id, t]));
+  const plTracks = pl.trackIds.map((id) => byId.get(id)).filter(Boolean);
+
+  // Prune ids for tracks that were deleted from the library since being added.
+  if (plTracks.length !== pl.trackIds.length) {
+    pl.trackIds = plTracks.map((t) => t.id);
+    persistPlaylist(pl);
+  }
+
+  subSubtitleEl.textContent = `${plTracks.length} song${plTracks.length === 1 ? '' : 's'}`;
+  playlistEmptyStateEl.classList.toggle('hidden', plTracks.length > 0);
+
+  trackListEl.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (const track of plTracks) {
+    frag.appendChild(renderTrackRow(track, { context: 'playlist', queue: plTracks }));
   }
   trackListEl.appendChild(frag);
 }
@@ -602,7 +1264,7 @@ function onDragEnd() {
   ).catch((err) => console.error('Failed to persist new track order', err));
 }
 
-function renderTrackRow(track) {
+function renderTrackRow(track, { context = 'library', queue = visibleTracks } = {}) {
   const li = document.createElement('li');
   li.className = 'track-row' + (track.id === currentTrackId ? ' playing' : '');
   li.dataset.id = track.id;
@@ -627,66 +1289,61 @@ function renderTrackRow(track) {
   moreBtn.title = 'Song options';
   moreBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    showActionSheet(track.id);
+    if (context === 'playlist') showActionSheet(track.id, { context: 'playlist', playlistId: currentPlaylistId });
+    else showActionSheet(track.id, { context: 'library' });
   });
 
   li.append(meta, duration, moreBtn);
-  li.addEventListener('click', () => playTrackById(track.id));
+  li.addEventListener('click', () => playTrackById(track.id, queue));
   return li;
 }
 
-function startRename(trackId) {
+function showEditTrackSheet(trackId) {
   const track = tracks.find((t) => t.id === trackId);
-  const row = trackListEl.querySelector(`.track-row[data-id="${trackId}"]`);
-  const titleEl = row?.querySelector('.track-title');
-  if (!track || !titleEl) return;
-
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'track-title-input';
-  input.value = track.title;
-  input.maxLength = 200;
-  titleEl.replaceWith(input);
-  input.focus();
-  input.select();
-  input.addEventListener('click', (e) => e.stopPropagation());
-
-  let settled = false;
-  const commit = () => {
-    if (settled) return;
-    settled = true;
-    const newTitle = input.value.trim();
-    if (newTitle && newTitle !== track.title) {
-      renameTrack(trackId, newTitle);
-    } else {
-      render();
-    }
-  };
-
-  input.addEventListener('blur', commit);
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      input.blur();
-    } else if (e.key === 'Escape') {
-      settled = true;
-      render();
-    }
-  });
+  if (!track) return;
+  editTrackId = trackId;
+  editTrackTitleInput.value = track.title;
+  editTrackArtistInput.value = track.artist || '';
+  editTrackSheet.classList.remove('hidden');
+  requestAnimationFrame(() => editTrackTitleInput.focus());
 }
 
-async function renameTrack(id, newTitle) {
-  const track = tracks.find((t) => t.id === id);
-  if (!track) return;
-  track.title = newTitle;
-  const { id: _id, ...record } = track;
+function hideEditTrackSheet() {
+  editTrackSheet.classList.add('hidden');
+  editTrackId = null;
+}
+
+async function saveEditTrack() {
+  const track = tracks.find((t) => t.id === editTrackId);
+  if (!track) {
+    hideEditTrackSheet();
+    return;
+  }
+
+  track.title = editTrackTitleInput.value.trim() || track.title;
+  track.artist = editTrackArtistInput.value.trim();
+  const { id, ...record } = track;
   await saveTrack(id, record);
+  hideEditTrackSheet();
   render();
+
+  if (currentTrackId === track.id) {
+    npTitle.textContent = track.title;
+    npArtist.textContent = track.artist || 'Unknown Artist';
+    updateMediaSessionMetadata(track);
+  }
 }
 
 async function removeTrack(id) {
   await deleteTrack(id);
   tracks = tracks.filter((t) => t.id !== id);
+
+  const affected = playlists.filter((p) => p.trackIds.includes(id));
+  for (const pl of affected) {
+    pl.trackIds = pl.trackIds.filter((tid) => tid !== id);
+  }
+  await Promise.all(affected.map(persistPlaylist));
+
   if (currentTrackId === id) {
     audio.pause();
     audio.removeAttribute('src');
@@ -699,15 +1356,16 @@ async function removeTrack(id) {
 
 // ---- playback ----
 function currentQueue() {
-  return shuffle && shuffleOrder ? shuffleOrder : visibleTracks;
+  return shuffle && shuffleOrder ? shuffleOrder : activeQueue;
 }
 
-function playTrackById(id) {
-  const track = visibleTracks.find((t) => t.id === id) || tracks.find((t) => t.id === id);
+function playTrackById(id, queue = visibleTracks) {
+  const track = queue.find((t) => t.id === id) || tracks.find((t) => t.id === id);
   if (!track) return;
 
+  activeQueue = queue;
   if (shuffle) {
-    shuffleOrder = buildShuffleOrder(visibleTracks, id);
+    shuffleOrder = buildShuffleOrder(queue, id);
   }
 
   currentTrackId = id;
@@ -775,7 +1433,8 @@ function restorePlaybackState() {
   if (!track) return;
 
   currentTrackId = track.id;
-  if (shuffle) shuffleOrder = buildShuffleOrder(visibleTracks, track.id);
+  activeQueue = tracks;
+  if (shuffle) shuffleOrder = buildShuffleOrder(activeQueue, track.id);
 
   currentObjectUrl = URL.createObjectURL(track.blob);
   audio.src = currentObjectUrl;
@@ -810,7 +1469,7 @@ function buildShuffleOrder(list, startId) {
 
 function togglePlay() {
   if (!currentTrackId) {
-    if (visibleTracks.length) playTrackById(visibleTracks[0].id);
+    if (visibleTracks.length) playTrackById(visibleTracks[0].id, visibleTracks);
     return;
   }
   if (audio.paused) audio.play().catch(() => {});
@@ -857,7 +1516,7 @@ function onEnded() {
 function toggleShuffle() {
   shuffle = !shuffle;
   shuffleBtn.classList.toggle('active', shuffle);
-  shuffleOrder = shuffle && currentTrackId ? buildShuffleOrder(visibleTracks, currentTrackId) : null;
+  shuffleOrder = shuffle && currentTrackId ? buildShuffleOrder(activeQueue, currentTrackId) : null;
   savePlaybackState();
 }
 
