@@ -21,6 +21,14 @@
 :root {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-display: 'Outfit', system-ui, -apple-system, sans-serif;
+
+  /* Apple HIG-style corner radius scale, applied consistently instead of
+     the previous scattered 8/10/14/20px values. Standard circular
+     border-radius, not true iOS "continuous corner" squircles — Chrome
+     doesn't yet support the CSS needed to render that curve. */
+  --radius-sm: 10px; /* inputs, small boxed buttons, toast, sheet items */
+  --radius-md: 14px; /* standalone card-like elements (dragged row) */
+  --radius-lg: 20px; /* big surfaces: player bar, bottom sheets */
 }
 
 :root[data-theme="dark"] {
@@ -104,7 +112,7 @@ button {
   width: 100%;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   padding: 8px 10px;
   font-size: 15px;
@@ -120,7 +128,7 @@ button {
   background: var(--accent);
   color: var(--accent-ink);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 8px 12px;
   font-size: 14px;
   font-weight: 600;
@@ -193,7 +201,7 @@ button {
   border: 1px solid var(--border);
   color: var(--text);
   padding: 10px 16px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   font-size: 0.85rem;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   opacity: 0;
@@ -249,7 +257,7 @@ button {
 .track-row-dragging {
   background: var(--bg-elevated);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .track-grip {
@@ -336,7 +344,7 @@ button {
   display: flex;
   flex-direction: column;
   background: var(--bg-elevated);
-  border-radius: 14px 14px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
   gap: 4px;
   max-height: 80vh;
@@ -351,7 +359,7 @@ button {
   font-weight: 600;
   letter-spacing: -0.3px;
   padding: 14px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   text-align: center;
 }
 
@@ -405,7 +413,7 @@ button {
   justify-content: center;
   gap: 6px;
   padding: 10px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--bg);
   color: var(--text-dim);
   border: 1px solid var(--border);
@@ -465,7 +473,7 @@ button {
   z-index: 40;
   background: var(--bg-elevated);
   padding: 22px 20px calc(20px + env(safe-area-inset-bottom));
-  border-radius: 20px 20px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.35);
 }
 
