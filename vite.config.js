@@ -43,6 +43,13 @@ export default defineConfig(({ command }) => ({
   // Bind to 0.0.0.0 so the phone can reach this over the local WiFi network.
   server: { host: true, https: httpsConfig },
   preview: { host: true, https: httpsConfig },
+  // esbuild's CSS minifier rewrites rgba(...)/blur(0px) into shorthand forms
+  // (8-digit hex colors, argument-less blur()) that some mobile browsers
+  // either fail to parse or that become outright invalid CSS — silently
+  // dropping the whole declaration. The stylesheet is small enough (~20KB)
+  // that skipping minification costs nothing meaningful and ships our exact
+  // authored syntax untouched.
+  build: { cssMinify: false },
   plugins: [
     serveRootCA(),
     VitePWA({
