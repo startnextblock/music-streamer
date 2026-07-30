@@ -35,7 +35,11 @@
   --ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
 
   /* Crystal Clear Crystal Liquid Refraction (Zero Frosted Blur) */
-  --glass-blur: blur(12px) saturate(240%) contrast(110%) brightness(108%);
+  /* saturate/contrast/brightness each add an extra GPU compositing pass on
+     top of the blur itself — dropped since their visual contribution was
+     marginal next to their cost, especially on elements that are
+     position:fixed and recompute every scroll frame. */
+  --glass-blur: blur(12px) saturate(180%);
 }
 
 :root[data-theme="dark"] {
@@ -113,8 +117,6 @@
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.3);
   border-radius: var(--radius-pill);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -203,8 +205,6 @@ button {
   padding: 8px 14px 8px 36px;
   font-size: 15px;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2), inset 0 -1px 1px rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
 }
 
@@ -481,11 +481,8 @@ button {
 
 .sheet-overlay.hidden .sheet-backdrop {
   background-color: rgba(0, 0, 0, 0);
-  /* blur(0px) minifies to the invalid "blur()" in production (esbuild's CSS
-     minifier bug), which browsers silently drop — use a non-zero value that
-     still reads as no blur but survives minification intact. */
-  backdrop-filter: blur(0.01px);
-  -webkit-backdrop-filter: blur(0.01px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .sheet-overlay.hidden .sheet-panel {
@@ -499,7 +496,11 @@ button {
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  transition: background-color var(--duration-base) var(--ease-standard), backdrop-filter var(--duration-base) var(--ease-standard), -webkit-backdrop-filter var(--duration-base) var(--ease-standard);
+  /* backdrop-filter is intentionally NOT transitioned — animating a blur
+     radius means recomputing the blur every single frame of the transition,
+     one of the most GPU-expensive things a mobile browser can do. Only the
+     backdrop's tint fades; the blur itself switches instantly. */
+  transition: background-color var(--duration-base) var(--ease-standard);
 }
 
 .sheet-panel {
