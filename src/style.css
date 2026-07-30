@@ -95,6 +95,21 @@
   background: transparent;
 }
 
+/* Devices/browsers without backdrop-filter support render the low-opacity
+   glass gradients as near-invisible — swap to a solid, more opaque
+   background so those surfaces still read as intentional cards instead of
+   looking broken. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  #topbar,
+  #player-bar,
+  .sheet-panel,
+  #toast,
+  #import-status,
+  .settings-group {
+    background: var(--bg-elevated) !important;
+  }
+}
+
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.3);
   border-radius: var(--radius-pill);
