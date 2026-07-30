@@ -83,21 +83,10 @@ button {
 
 #topbar {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 12px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
-}
-
-#topbar-row1 {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-#topbar-row2 {
-  display: flex;
-  gap: 10px;
 }
 
 #topbar h1 {
@@ -106,10 +95,12 @@ button {
   font-weight: 700;
   letter-spacing: -0.5px;
   margin: 0;
+  flex-shrink: 0;
 }
 
 #search {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
