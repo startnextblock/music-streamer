@@ -670,7 +670,6 @@ button {
 #shuffle-btn.active,
 #repeat-btn.active {
   color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.25);
   animation: toggle-pop 0.3s ease;
 }
 
