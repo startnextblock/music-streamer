@@ -1220,7 +1220,13 @@ button {
   width: 64px;
   height: 64px;
   position: relative;
-  background: var(--glass-bg-elevated);
+  /* Deliberately not --glass-bg-elevated: that token is now opaque (fixed
+     dark/light color, tuned for full-size cards). On this small round
+     button that read as a flat disc in dark mode and blended into the
+     equally-opaque player bar in light mode, leaving only the border/shadow
+     ring visible. A dedicated, theme-independent light tint keeps it a
+     visibly translucent lens against either background. */
+  background: rgba(255, 255, 255, 0.16);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1.5px solid rgba(255, 255, 255, 0.65);
