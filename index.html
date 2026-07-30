@@ -17,9 +17,16 @@
               : 'dark';
         document.documentElement.setAttribute('data-theme', theme);
 
-        var hue = Number(localStorage.getItem('accentHue'));
-        var sat = Number(localStorage.getItem('accentSat'));
-        var val = Number(localStorage.getItem('accentVal'));
+        // Number(null) is 0, not NaN — on a fresh profile with nothing saved
+        // yet, that reads as "hue 0, sat 0, val 0" (black) instead of "no
+        // saved value, use the default amber below". Reading the raw string
+        // first keeps an absent value absent instead of silently becoming 0.
+        var rawHue = localStorage.getItem('accentHue');
+        var rawSat = localStorage.getItem('accentSat');
+        var rawVal = localStorage.getItem('accentVal');
+        var hue = rawHue === null ? NaN : Number(rawHue);
+        var sat = rawSat === null ? NaN : Number(rawSat);
+        var val = rawVal === null ? NaN : Number(rawVal);
         if (!(isFinite(hue) && hue >= 0 && hue <= 360)) hue = null;
         if (!(isFinite(sat) && sat >= 0 && sat <= 100)) sat = null;
         if (!(isFinite(val) && val >= 0 && val <= 100)) val = 90;
@@ -52,6 +59,30 @@
           var isLightHue = (hue > 25 && hue < 195) || sat < 30;
           var ink = val < 55 ? '#ffffff' : isLightHue ? '#1a1d21' : '#ffffff';
           document.documentElement.style.setProperty('--accent-ink', ink);
+
+          // See updateAccentTextToken() in main.js for why this exists —
+          // the plain accent doesn't have enough contrast used as text
+          // against light-theme surfaces, so light mode gets a darkened
+          // (same hue/saturation, lower value) variant instead.
+          if (theme === 'light') {
+            var tv = Math.min(val, 55) / 100;
+            var tc = tv * s;
+            var tx = tc * (1 - Math.abs(((hue / 60) % 2) - 1));
+            var tm = tv - tc;
+            var tr, tg, tb;
+            if (hue < 60) { tr = tc; tg = tx; tb = 0; }
+            else if (hue < 120) { tr = tx; tg = tc; tb = 0; }
+            else if (hue < 180) { tr = 0; tg = tc; tb = tx; }
+            else if (hue < 240) { tr = 0; tg = tx; tb = tc; }
+            else if (hue < 300) { tr = tx; tg = 0; tb = tc; }
+            else { tr = tc; tg = 0; tb = tx; }
+            tr = Math.round((tr + tm) * 255);
+            tg = Math.round((tg + tm) * 255);
+            tb = Math.round((tb + tm) * 255);
+            document.documentElement.style.setProperty('--accent-text', 'rgb(' + tr + ', ' + tg + ', ' + tb + ')');
+          } else {
+            document.documentElement.style.setProperty('--accent-text', 'var(--accent)');
+          }
         }
       })();
     </script>
@@ -79,6 +110,20 @@
         <span id="import-text"></span>
       </div>
 
+      <nav id="sidebar" aria-label="Library">
+        <div id="sidebar-songs" class="sidebar-item">
+          <span class="sidebar-item-icon" id="sidebar-songs-icon"></span>
+          <span class="sidebar-item-label">Songs</span>
+        </div>
+
+        <div id="sidebar-playlists-header" class="sidebar-item">
+          <span class="sidebar-item-icon" id="sidebar-playlists-icon"></span>
+          <span class="sidebar-item-label">Playlists</span>
+          <button id="sidebar-new-playlist-btn" class="sidebar-icon-btn" title="New playlist"></button>
+        </div>
+        <ul id="sidebar-playlist-list"></ul>
+      </nav>
+
       <main id="library">
         <div id="library-root">
           <ul id="library-root-list"></ul>
@@ -103,6 +148,7 @@
           phone's storage. Once imported, it's saved on-device and plays with no
           internet connection needed.
         </p>
+        <p id="search-empty-state" class="empty-msg hidden">No songs match your search.</p>
         <p id="playlists-empty-state" class="empty-msg hidden">
           No playlists yet. Tap <strong>＋</strong> to create one.
         </p>
@@ -122,26 +168,29 @@
           </div>
         </div>
 
-        <div id="seek-row">
-          <span id="time-current">0:00</span>
-          <input id="seek" type="range" min="0" max="1000" value="0" />
-          <span id="time-total">0:00</span>
+        <div id="player-center">
+          <div id="seek-row">
+            <span id="time-current">0:00</span>
+            <input id="seek" type="range" min="0" max="1000" value="0" />
+            <span id="time-total">0:00</span>
+          </div>
+
+          <div id="controls">
+            <div id="transport">
+              <button id="shuffle-btn" class="ctrl" title="Shuffle">🔀</button>
+              <div class="transport-core">
+                <button id="prev-btn" class="ctrl" title="Previous">⏮</button>
+                <button id="play-btn" class="ctrl big" title="Play/Pause">▶</button>
+                <button id="next-btn" class="ctrl" title="Next">⏭</button>
+              </div>
+              <button id="repeat-btn" class="ctrl" title="Repeat">🔁</button>
+            </div>
+          </div>
         </div>
 
-        <div id="controls">
-          <div id="transport">
-            <button id="shuffle-btn" class="ctrl" title="Shuffle">🔀</button>
-            <div class="transport-core">
-              <button id="prev-btn" class="ctrl" title="Previous">⏮</button>
-              <button id="play-btn" class="ctrl big" title="Play/Pause">▶</button>
-              <button id="next-btn" class="ctrl" title="Next">⏭</button>
-            </div>
-            <button id="repeat-btn" class="ctrl" title="Repeat">🔁</button>
-          </div>
-          <div id="volume-control">
-            <button id="volume-btn" class="ctrl" title="Mute">🔊</button>
-            <input id="volume" type="range" min="0" max="100" value="100" />
-          </div>
+        <div id="volume-control">
+          <button id="volume-btn" class="ctrl" title="Mute">🔊</button>
+          <input id="volume" type="range" min="0" max="100" value="100" />
         </div>
       </footer>
     </div>
@@ -191,11 +240,11 @@
           <div class="settings-section">
             <span class="settings-label">Accent Color</span>
             <div id="accent-preview"></div>
-            <div id="color-square-wrap">
+            <div id="color-square-wrap" tabindex="0" role="slider" aria-label="Saturation and brightness" aria-valuemin="0" aria-valuemax="100">
               <div id="color-square"></div>
               <div id="color-square-thumb"></div>
             </div>
-            <div class="slider-track-wrap" id="hue-track-area">
+            <div class="slider-track-wrap" id="hue-track-area" tabindex="0" role="slider" aria-label="Accent hue" aria-valuemin="0" aria-valuemax="360">
               <div class="gradient-track hue-gradient"></div>
               <div id="hue-thumb" class="color-thumb"></div>
             </div>

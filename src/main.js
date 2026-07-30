@@ -11,6 +11,7 @@ const el = (id) => document.getElementById(id);
 const libraryEl = el('library');
 const trackListEl = el('track-list');
 const emptyStateEl = el('empty-state');
+const searchEmptyStateEl = el('search-empty-state');
 const appTitleEl = el('app-title');
 const searchEl = el('search');
 const searchBtn = el('search-btn');
@@ -56,6 +57,14 @@ const importSheetBackdrop = el('import-sheet-backdrop');
 const importFilesOption = el('import-files-option');
 const importFolderOption = el('import-folder-option');
 const importCancelBtn = el('import-cancel');
+
+const sidebarEl = el('sidebar');
+const sidebarSongsEl = el('sidebar-songs');
+const sidebarSongsIconEl = el('sidebar-songs-icon');
+const sidebarPlaylistsHeaderEl = el('sidebar-playlists-header');
+const sidebarPlaylistsIconEl = el('sidebar-playlists-icon');
+const sidebarNewPlaylistBtn = el('sidebar-new-playlist-btn');
+const sidebarPlaylistListEl = el('sidebar-playlist-list');
 
 const libraryRootEl = el('library-root');
 const libraryRootListEl = el('library-root-list');
@@ -160,6 +169,8 @@ const ICONS = {
     '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
   search:
     '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>',
+  note: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+  list: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>',
   close: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   check: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
 };
@@ -177,6 +188,26 @@ function applyTheme(theme) {
   themeToggle.setAttribute('aria-checked', theme === 'dark' ? 'true' : 'false');
   const metaThemeColor = document.querySelector('meta[name="theme-color"]');
   if (metaThemeColor) metaThemeColor.setAttribute('content', theme === 'dark' ? '#1a1d21' : '#e0e5ec');
+  updateAccentTextToken();
+}
+
+// The accent itself is tuned to read well as a FILL (buttons, the seek
+// track, active-state highlights) against both themes' surfaces. Used
+// directly as TEXT, though, it fails WCAG AA in light mode — a mid-brightness
+// amber against a light background just doesn't have enough luminance gap.
+// This derives a separate --accent-text token: dark mode's surfaces are
+// dark enough that the plain accent already passes as text, so it's just
+// aliased; light mode gets a deliberately darkened variant (same hue/
+// saturation the user picked, lower value) that still reads as "the accent
+// color" but clears 4.5:1 against light backgrounds. Re-run whenever the
+// accent OR the theme changes, since either one can invalidate it.
+function updateAccentTextToken() {
+  if (getTheme() === 'light') {
+    const [r, g, b] = hsvToRgb(currentHue, currentSat, Math.min(currentVal, 55));
+    document.documentElement.style.setProperty('--accent-text', `rgb(${r}, ${g}, ${b})`);
+  } else {
+    document.documentElement.style.setProperty('--accent-text', 'var(--accent)');
+  }
 }
 
 // Standard HSV->RGB conversion (h: 0-360, s/v: 0-100). HSV (rather than HSL)
@@ -219,8 +250,16 @@ function applyAccentFromHSV(hue, sat, val, { persist = true } = {}) {
   document.documentElement.style.setProperty('--accent', `rgb(${r}, ${g}, ${b})`);
   document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
   document.documentElement.style.setProperty('--accent-ink', ink);
+  updateAccentTextToken();
 
   accentPreviewEl.style.background = `rgb(${r}, ${g}, ${b})`;
+
+  // Kept in sync here (the one function every change — drag, keyboard, or
+  // initial load — already runs through) so a screen reader announces the
+  // current hue/saturation/brightness regardless of how it changed.
+  hueTrackArea.setAttribute('aria-valuenow', String(Math.round(hue)));
+  colorSquareWrapEl.setAttribute('aria-valuenow', String(Math.round(sat)));
+  colorSquareWrapEl.setAttribute('aria-valuetext', `Saturation ${Math.round(sat)}%, brightness ${Math.round(val)}%`);
 
   if (persist) {
     localStorage.setItem('accentHue', String(hue));
@@ -287,51 +326,23 @@ function updateSquareFromClientPoint({ x, y }) {
   applyAccentFromHSV(currentHue, sat, val, { persist: false });
 }
 
-function setupColorDrag(trackArea, onMove) {
+// Shared drag wiring for both accent-color pickers (hue strip and
+// saturation/brightness square) — identical mouse/touch/rAF-throttling
+// behavior, differing only in what point value gets extracted per event.
+function setupPointerDrag(area, extractValue, onMove) {
   let dragging = false;
   let rafId = null;
 
   const start = (e) => {
     dragging = true;
-    onMove(clientXFromEvent(e));
+    onMove(extractValue(e));
   };
   const move = (e) => {
     if (!dragging) return;
     if (rafId) cancelAnimationFrame(rafId);
-    const clientX = clientXFromEvent(e);
+    const value = extractValue(e);
     rafId = requestAnimationFrame(() => {
-      onMove(clientX);
-      rafId = null;
-    });
-  };
-  const end = () => {
-    if (!dragging) return;
-    dragging = false;
-    applyAccentFromHSV(currentHue, currentSat, currentVal);
-  };
-
-  trackArea.addEventListener('mousedown', start);
-  document.addEventListener('mousemove', move);
-  document.addEventListener('mouseup', end);
-  trackArea.addEventListener('touchstart', start, { passive: true });
-  document.addEventListener('touchmove', move, { passive: true });
-  document.addEventListener('touchend', end);
-}
-
-function setupSquareDrag(area, onMove) {
-  let dragging = false;
-  let rafId = null;
-
-  const start = (e) => {
-    dragging = true;
-    onMove(clientPointFromEvent(e));
-  };
-  const move = (e) => {
-    if (!dragging) return;
-    if (rafId) cancelAnimationFrame(rafId);
-    const point = clientPointFromEvent(e);
-    rafId = requestAnimationFrame(() => {
-      onMove(point);
+      onMove(value);
       rafId = null;
     });
   };
@@ -349,13 +360,21 @@ function setupSquareDrag(area, onMove) {
   document.addEventListener('touchend', end);
 }
 
+function openSheet(sheetEl) {
+  sheetEl.classList.remove('hidden');
+}
+
+function closeSheet(sheetEl) {
+  sheetEl.classList.add('hidden');
+}
+
 function showSettingsSheet() {
-  settingsSheet.classList.remove('hidden');
+  openSheet(settingsSheet);
   positionAccentThumbs();
 }
 
 function hideSettingsSheet() {
-  settingsSheet.classList.add('hidden');
+  closeSheet(settingsSheet);
 }
 
 function showSearch() {
@@ -380,12 +399,26 @@ function hideSearch() {
 }
 
 function showImportSheet() {
-  importSheet.classList.remove('hidden');
+  openSheet(importSheet);
 }
 
 function hideImportSheet() {
-  importSheet.classList.add('hidden');
+  closeSheet(importSheet);
 }
+
+// Registry of sheet elements whose Escape-to-dismiss handling is generic —
+// adding a new sheet just means adding one entry here, not another
+// classList check in the keydown listener below.
+const DISMISSIBLE_SHEETS = [
+  { el: actionSheet, hide: hideActionSheet },
+  { el: settingsSheet, hide: hideSettingsSheet },
+  { el: importSheet, hide: hideImportSheet },
+  { el: newPlaylistSheet, hide: hideNewPlaylistSheet },
+  { el: playlistActionSheet, hide: hidePlaylistActionSheet },
+  { el: playlistPickerSheet, hide: hidePlaylistPickerSheet },
+  { el: addTracksSheet, hide: hideAddTracksSheet },
+  { el: editTrackSheet, hide: hideEditTrackSheet },
+];
 
 async function init() {
   settingsBtn.innerHTML = ICONS.gear;
@@ -393,9 +426,15 @@ async function init() {
 
   applyTheme(getTheme());
 
-  const storedHue = Number(localStorage.getItem('accentHue'));
-  const storedSat = Number(localStorage.getItem('accentSat'));
-  const storedVal = Number(localStorage.getItem('accentVal'));
+  // Number(null) is 0, not NaN — reading the raw string first keeps an
+  // absent saved value absent instead of it silently passing the range
+  // check below as a legitimate "hue 0" and landing on black.
+  const rawHue = localStorage.getItem('accentHue');
+  const rawSat = localStorage.getItem('accentSat');
+  const rawVal = localStorage.getItem('accentVal');
+  const storedHue = rawHue === null ? NaN : Number(rawHue);
+  const storedSat = rawSat === null ? NaN : Number(rawSat);
+  const storedVal = rawVal === null ? NaN : Number(rawVal);
   applyAccentFromHSV(
     Number.isFinite(storedHue) && storedHue >= 0 && storedHue <= 360 ? storedHue : currentHue,
     Number.isFinite(storedSat) && storedSat >= 0 && storedSat <= 100 ? storedSat : currentSat,
@@ -407,8 +446,43 @@ async function init() {
   settingsSheetBackdrop.addEventListener('click', hideSettingsSheet);
   settingsCloseBtn.addEventListener('click', hideSettingsSheet);
   themeToggle.addEventListener('click', () => applyTheme(getTheme() === 'dark' ? 'light' : 'dark'));
-  setupColorDrag(hueTrackArea, updateHueFromClientX);
-  setupSquareDrag(colorSquareWrapEl, updateSquareFromClientPoint);
+  setupPointerDrag(hueTrackArea, clientXFromEvent, updateHueFromClientX);
+  setupPointerDrag(colorSquareWrapEl, clientPointFromEvent, updateSquareFromClientPoint);
+
+  // Both pickers were mouse/touch-only — a keyboard user couldn't change
+  // the accent color at all. Arrow keys step hue and saturation/brightness
+  // the same way dragging does, reusing applyAccentFromHSV so persistence
+  // and the aria-value* updates stay identical either way.
+  hueTrackArea.addEventListener('keydown', (e) => {
+    const step = e.shiftKey ? 15 : 5;
+    let delta = 0;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') delta = -step;
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') delta = step;
+    else if (e.key === 'Home') delta = -currentHue;
+    else if (e.key === 'End') delta = 360 - currentHue;
+    else return;
+    e.preventDefault();
+    const hue = Math.max(0, Math.min(360, currentHue + delta));
+    applyAccentFromHSV(hue, currentSat, currentVal);
+    positionThumb(hueThumb, hueTrackArea, hue / 360);
+    updateColorSquareBackground(hue);
+  });
+
+  colorSquareWrapEl.addEventListener('keydown', (e) => {
+    const step = e.shiftKey ? 10 : 4;
+    let dSat = 0;
+    let dVal = 0;
+    if (e.key === 'ArrowLeft') dSat = -step;
+    else if (e.key === 'ArrowRight') dSat = step;
+    else if (e.key === 'ArrowUp') dVal = step;
+    else if (e.key === 'ArrowDown') dVal = -step;
+    else return;
+    e.preventDefault();
+    const sat = Math.max(0, Math.min(100, currentSat + dSat));
+    const val = Math.max(0, Math.min(100, currentVal + dVal));
+    applyAccentFromHSV(currentHue, sat, val);
+    positionSquareThumb();
+  });
 
   if (navigator.storage?.persist) {
     navigator.storage.persist().catch(() => {});
@@ -426,6 +500,16 @@ async function init() {
   // is too early for a View Transition (it gets skipped with a rejection) —
   // only subsequent user-triggered navigation should cross-fade.
   renderLibraryViewImmediate();
+
+  sidebarSongsIconEl.innerHTML = ICONS.note;
+  sidebarPlaylistsIconEl.innerHTML = ICONS.list;
+  sidebarNewPlaylistBtn.innerHTML = ICONS.plus;
+  sidebarSongsEl.addEventListener('click', goToSongs);
+  sidebarPlaylistsHeaderEl.addEventListener('click', goToPlaylists);
+  sidebarNewPlaylistBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showNewPlaylistSheet();
+  });
 
   sortable = Sortable.create(trackListEl, {
     delay: 300,
@@ -616,14 +700,9 @@ async function init() {
 
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (!actionSheet.classList.contains('hidden')) hideActionSheet();
-    if (!settingsSheet.classList.contains('hidden')) hideSettingsSheet();
-    if (!importSheet.classList.contains('hidden')) hideImportSheet();
-    if (!newPlaylistSheet.classList.contains('hidden')) hideNewPlaylistSheet();
-    if (!playlistActionSheet.classList.contains('hidden')) hidePlaylistActionSheet();
-    if (!playlistPickerSheet.classList.contains('hidden')) hidePlaylistPickerSheet();
-    if (!addTracksSheet.classList.contains('hidden')) hideAddTracksSheet();
-    if (!editTrackSheet.classList.contains('hidden')) hideEditTrackSheet();
+    for (const { el, hide } of DISMISSIBLE_SHEETS) {
+      if (!el.classList.contains('hidden')) hide();
+    }
   });
 }
 
@@ -634,11 +713,11 @@ function showActionSheet(trackId, { context = 'library', playlistId = null } = {
   actionDeleteBtn.classList.toggle('hidden', context === 'playlist');
   actionAddToPlaylistBtn.classList.toggle('hidden', context === 'playlist');
   actionRemoveFromPlaylistBtn.classList.toggle('hidden', context !== 'playlist');
-  actionSheet.classList.remove('hidden');
+  openSheet(actionSheet);
 }
 
 function hideActionSheet() {
-  actionSheet.classList.add('hidden');
+  closeSheet(actionSheet);
   actionSheetTrackId = null;
 }
 
@@ -710,12 +789,12 @@ async function persistPlaylist(playlist) {
 
 function showNewPlaylistSheet() {
   newPlaylistNameInput.value = '';
-  newPlaylistSheet.classList.remove('hidden');
+  openSheet(newPlaylistSheet);
   requestAnimationFrame(() => newPlaylistNameInput.focus());
 }
 
 function hideNewPlaylistSheet() {
-  newPlaylistSheet.classList.add('hidden');
+  closeSheet(newPlaylistSheet);
   pendingPickerTrackId = null;
 }
 
@@ -738,16 +817,17 @@ async function createPlaylist() {
   } else if (currentView === 'playlists') {
     renderPlaylistsList();
   }
+  renderSidebar();
   showToast(`Created "${name}"`);
 }
 
 function showPlaylistActionSheet(id) {
   playlistActionId = id;
-  playlistActionSheet.classList.remove('hidden');
+  openSheet(playlistActionSheet);
 }
 
 function hidePlaylistActionSheet() {
-  playlistActionSheet.classList.add('hidden');
+  closeSheet(playlistActionSheet);
   playlistActionId = null;
 }
 
@@ -777,6 +857,7 @@ function startPlaylistRename(playlistId) {
       await persistPlaylist(pl);
     }
     renderPlaylistsList();
+    renderSidebar();
   };
 
   input.addEventListener('blur', commit);
@@ -797,6 +878,7 @@ async function deletePlaylistById(id) {
   playlists = playlists.filter((p) => p.id !== id);
   if (currentPlaylistId === id) closePlaylistDetail();
   else renderPlaylistsList();
+  renderSidebar();
 }
 
 function getCoverUrl(playlist) {
@@ -820,11 +902,11 @@ function revokeCoverUrl(id) {
 function showPlaylistPickerSheet(trackId) {
   playlistPickerTrackId = trackId;
   renderPlaylistPickerList(trackId);
-  playlistPickerSheet.classList.remove('hidden');
+  openSheet(playlistPickerSheet);
 }
 
 function hidePlaylistPickerSheet() {
-  playlistPickerSheet.classList.add('hidden');
+  closeSheet(playlistPickerSheet);
   playlistPickerTrackId = null;
 }
 
@@ -844,11 +926,11 @@ function renderPlaylistPickerList(trackId) {
 
 function showAddTracksSheet(playlistId) {
   renderAddTracksList(playlistId);
-  addTracksSheet.classList.remove('hidden');
+  openSheet(addTracksSheet);
 }
 
 function hideAddTracksSheet() {
-  addTracksSheet.classList.add('hidden');
+  closeSheet(addTracksSheet);
 }
 
 function renderAddTracksList(playlistId) {
@@ -1022,7 +1104,7 @@ async function importFiles(fileList) {
   folderInput.value = '';
   setImporting(false);
 
-  const summary = [`Imported ${imported} song${imported === 1 ? '' : 's'}`];
+  const summary = [`Imported ${pluralize(imported, 'song')}`];
   if (duplicates) summary.push(`${duplicates} already in library`);
   if (failed) summary.push(`${failed} failed`);
   if (skippedCount) summary.push(`${skippedCount} skipped (not audio)`);
@@ -1050,6 +1132,10 @@ function isAudioFile(file) {
 
 function stripExtension(name) {
   return name.replace(/\.[^/.]+$/, '');
+}
+
+function pluralize(count, word) {
+  return `${count} ${word}${count === 1 ? '' : 's'}`;
 }
 
 // ---- rendering ----
@@ -1087,9 +1173,12 @@ function renderLibraryViewImmediate() {
 
   trackListEl.classList.toggle('hidden', !(isSongs || isDetail));
   playlistListEl.classList.toggle('hidden', !isPlaylists);
-  emptyStateEl.style.display = 'none';
+  emptyStateEl.classList.add('hidden');
+  searchEmptyStateEl.classList.add('hidden');
   playlistsEmptyStateEl.classList.add('hidden');
   playlistEmptyStateEl.classList.add('hidden');
+
+  renderSidebar();
 
   if (isRoot) {
     renderLibraryRoot();
@@ -1099,14 +1188,13 @@ function renderLibraryViewImmediate() {
   if (isSongs) {
     subBackLabelEl.textContent = 'Library';
     subTitleEl.textContent = 'Songs';
-    subSubtitleEl.textContent = `${tracks.length} song${tracks.length === 1 ? '' : 's'}`;
+    subSubtitleEl.textContent = pluralize(tracks.length, 'song');
     subActionBtn.classList.add('hidden');
-    emptyStateEl.style.display = tracks.length ? 'none' : 'block';
     render();
   } else if (isPlaylists) {
     subBackLabelEl.textContent = 'Library';
     subTitleEl.textContent = 'Playlists';
-    subSubtitleEl.textContent = `${playlists.length} playlist${playlists.length === 1 ? '' : 's'}`;
+    subSubtitleEl.textContent = pluralize(playlists.length, 'playlist');
     subActionBtn.classList.remove('hidden');
     subActionBtn.title = 'New playlist';
     subActionBtn.innerHTML = ICONS.plus;
@@ -1122,6 +1210,25 @@ function renderLibraryViewImmediate() {
     if (sortable) sortable.option('disabled', true);
     renderPlaylistDetail();
   }
+}
+
+function renderSidebar() {
+  const songsActive = currentView === 'root' || currentView === 'songs';
+  sidebarSongsEl.classList.toggle('active', songsActive);
+  sidebarPlaylistsHeaderEl.classList.toggle('active', currentView === 'playlists');
+
+  sidebarPlaylistListEl.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (const pl of playlists) {
+    const li = document.createElement('li');
+    li.className = 'sidebar-playlist-item';
+    li.classList.toggle('active', currentView === 'playlist-detail' && currentPlaylistId === pl.id);
+    li.textContent = pl.name;
+    li.title = pl.name;
+    li.addEventListener('click', () => openPlaylistDetail(pl.id));
+    frag.appendChild(li);
+  }
+  sidebarPlaylistListEl.appendChild(frag);
 }
 
 function renderLibraryRoot() {
@@ -1157,7 +1264,8 @@ function render() {
     ? tracks.filter((t) => [t.title, t.album].some((s) => (s || '').toLowerCase().includes(query)))
     : tracks;
 
-  emptyStateEl.style.display = tracks.length ? 'none' : 'block';
+  emptyStateEl.classList.toggle('hidden', tracks.length > 0);
+  searchEmptyStateEl.classList.toggle('hidden', !query || visibleTracks.length > 0);
 
   // Dragging to reorder only makes sense against the full, unfiltered
   // library — reordering a filtered subset wouldn't map cleanly back to it.
@@ -1175,6 +1283,7 @@ function render() {
 function renderPlaylistsList() {
   playlistListEl.innerHTML = '';
   playlistsEmptyStateEl.classList.toggle('hidden', playlists.length > 0);
+  if (currentView === 'playlists') subSubtitleEl.textContent = pluralize(playlists.length, 'playlist');
   const frag = document.createDocumentFragment();
   for (const pl of playlists) {
     frag.appendChild(renderPlaylistCard(pl));
@@ -1208,8 +1317,7 @@ function renderPlaylistCard(playlist) {
   titleEl.textContent = playlist.name;
   const countEl = document.createElement('div');
   countEl.className = 'playlist-card-count';
-  const count = playlist.trackIds.length;
-  countEl.textContent = `${count} song${count === 1 ? '' : 's'}`;
+  countEl.textContent = pluralize(playlist.trackIds.length, 'song');
   info.append(titleEl, countEl);
 
   li.append(cover, moreBtn, info);
@@ -1234,7 +1342,7 @@ function renderPlaylistDetail() {
     persistPlaylist(pl);
   }
 
-  subSubtitleEl.textContent = `${plTracks.length} song${plTracks.length === 1 ? '' : 's'}`;
+  subSubtitleEl.textContent = pluralize(plTracks.length, 'song');
   playlistEmptyStateEl.classList.toggle('hidden', plTracks.length > 0);
 
   trackListEl.innerHTML = '';
@@ -1309,12 +1417,12 @@ function showEditTrackSheet(trackId) {
   editTrackId = trackId;
   editTrackTitleInput.value = track.title;
   editTrackArtistInput.value = track.artist || '';
-  editTrackSheet.classList.remove('hidden');
+  openSheet(editTrackSheet);
   requestAnimationFrame(() => editTrackTitleInput.focus());
 }
 
 function hideEditTrackSheet() {
-  editTrackSheet.classList.add('hidden');
+  closeSheet(editTrackSheet);
   editTrackId = null;
 }
 
@@ -1382,16 +1490,20 @@ function playTrackById(id, queue = visibleTracks) {
   seek.value = 0;
   updateSeekFill(0);
 
-  playerBar.classList.remove('hidden');
-  syncLibraryPadding();
-  npTitle.textContent = track.title;
-  npArtist.textContent = track.artist || 'Unknown Artist';
-  updateMediaSessionMetadata(track);
+  updateNowPlayingUI(track);
   savePlaybackState();
 
   document.querySelectorAll('.track-row').forEach((r) => {
     r.classList.toggle('playing', r.dataset.id === id);
   });
+}
+
+function updateNowPlayingUI(track) {
+  playerBar.classList.remove('hidden');
+  syncLibraryPadding();
+  npTitle.textContent = track.title;
+  npArtist.textContent = track.artist || 'Unknown Artist';
+  updateMediaSessionMetadata(track);
 }
 
 function updateMediaSessionMetadata(track) {
@@ -1431,8 +1543,7 @@ function restorePlaybackState() {
   shuffleBtn.classList.toggle('active', shuffle);
 
   repeatMode = saved.repeatMode === 'all' || saved.repeatMode === 'one' ? saved.repeatMode : 'off';
-  repeatBtn.innerHTML = repeatMode === 'one' ? ICONS.repeatOne : ICONS.repeat;
-  repeatBtn.classList.toggle('active', repeatMode !== 'off');
+  updateRepeatUI();
 
   const track = tracks.find((t) => t.id === saved.trackId);
   if (!track) return;
@@ -1454,11 +1565,7 @@ function restorePlaybackState() {
     { once: true }
   );
 
-  playerBar.classList.remove('hidden');
-  syncLibraryPadding();
-  npTitle.textContent = track.title;
-  npArtist.textContent = track.artist || 'Unknown Artist';
-  updateMediaSessionMetadata(track);
+  updateNowPlayingUI(track);
   render();
 }
 
@@ -1525,10 +1632,14 @@ function toggleShuffle() {
   savePlaybackState();
 }
 
-function cycleRepeat() {
-  repeatMode = repeatMode === 'off' ? 'all' : repeatMode === 'all' ? 'one' : 'off';
+function updateRepeatUI() {
   repeatBtn.innerHTML = repeatMode === 'one' ? ICONS.repeatOne : ICONS.repeat;
   repeatBtn.classList.toggle('active', repeatMode !== 'off');
+}
+
+function cycleRepeat() {
+  repeatMode = repeatMode === 'off' ? 'all' : repeatMode === 'all' ? 'one' : 'off';
+  updateRepeatUI();
   savePlaybackState();
 }
 
