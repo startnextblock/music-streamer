@@ -35,7 +35,7 @@
   --ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
 
   /* Crystal Clear Crystal Liquid Refraction (Zero Frosted Blur) */
-  --glass-blur: blur(24px) saturate(240%) contrast(110%) brightness(108%);
+  --glass-blur: blur(19px) saturate(240%) contrast(110%) brightness(108%);
 }
 
 :root[data-theme="dark"] {
