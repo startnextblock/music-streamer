@@ -449,12 +449,24 @@ async function importFiles(fileList) {
   setImporting(true);
   let imported = 0;
   let failed = 0;
+  let duplicates = 0;
   let orderCounter = nextOrderValue();
+
+  // Cheap dedupe signature (name+size, not a content hash — fast enough to
+  // check per-file with no CPU cost) so re-importing an overlapping folder
+  // doesn't silently store a second full copy of every song.
+  const knownSignatures = new Set(tracks.map((t) => `${t.name}|${t.blob.size}`));
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     importBarFill.style.width = `${Math.round((i / files.length) * 100)}%`;
     importText.textContent = `Importing ${i + 1} of ${files.length}: ${file.name}`;
+
+    const signature = `${file.name}|${file.size}`;
+    if (knownSignatures.has(signature)) {
+      duplicates++;
+      continue;
+    }
 
     try {
       const meta = await parseBlob(file).catch(() => null);
@@ -472,6 +484,7 @@ async function importFiles(fileList) {
       };
       await saveTrack(id, record);
       tracks.push({ id, ...record });
+      knownSignatures.add(signature);
       imported++;
     } catch (err) {
       console.error('Failed to import', file.name, err);
@@ -487,6 +500,7 @@ async function importFiles(fileList) {
   setImporting(false);
 
   const summary = [`Imported ${imported} song${imported === 1 ? '' : 's'}`];
+  if (duplicates) summary.push(`${duplicates} already in library`);
   if (failed) summary.push(`${failed} failed`);
   if (skippedCount) summary.push(`${skippedCount} skipped (not audio)`);
   showToast(summary.join(' · '));
