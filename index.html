@@ -17,9 +17,24 @@
               : 'dark';
         document.documentElement.setAttribute('data-theme', theme);
 
-        var hue = Number(localStorage.getItem('accentHue'));
-        var sat = Number(localStorage.getItem('accentSat'));
-        var val = Number(localStorage.getItem('accentVal'));
+        // Same before-first-paint treatment as the theme above: read the
+        // desktop sidebar's collapsed/expanded state before layout happens
+        // so it doesn't visibly snap from wide to narrow (or vice versa)
+        // right after load.
+        if (localStorage.getItem('sidebarCollapsed') === 'true') {
+          document.documentElement.setAttribute('data-sidebar', 'collapsed');
+        }
+
+        // Number(null) is 0, not NaN — on a fresh profile with nothing saved
+        // yet, that reads as "hue 0, sat 0, val 0" (black) instead of "no
+        // saved value, use the default amber below". Reading the raw string
+        // first keeps an absent value absent instead of silently becoming 0.
+        var rawHue = localStorage.getItem('accentHue');
+        var rawSat = localStorage.getItem('accentSat');
+        var rawVal = localStorage.getItem('accentVal');
+        var hue = rawHue === null ? NaN : Number(rawHue);
+        var sat = rawSat === null ? NaN : Number(rawSat);
+        var val = rawVal === null ? NaN : Number(rawVal);
         if (!(isFinite(hue) && hue >= 0 && hue <= 360)) hue = null;
         if (!(isFinite(sat) && sat >= 0 && sat <= 100)) sat = null;
         if (!(isFinite(val) && val >= 0 && val <= 100)) val = 90;
@@ -52,6 +67,30 @@
           var isLightHue = (hue > 25 && hue < 195) || sat < 30;
           var ink = val < 55 ? '#ffffff' : isLightHue ? '#1a1d21' : '#ffffff';
           document.documentElement.style.setProperty('--accent-ink', ink);
+
+          // See updateAccentTextToken() in main.js for why this exists —
+          // the plain accent doesn't have enough contrast used as text
+          // against light-theme surfaces, so light mode gets a darkened
+          // (same hue/saturation, lower value) variant instead.
+          if (theme === 'light') {
+            var tv = Math.min(val, 55) / 100;
+            var tc = tv * s;
+            var tx = tc * (1 - Math.abs(((hue / 60) % 2) - 1));
+            var tm = tv - tc;
+            var tr, tg, tb;
+            if (hue < 60) { tr = tc; tg = tx; tb = 0; }
+            else if (hue < 120) { tr = tx; tg = tc; tb = 0; }
+            else if (hue < 180) { tr = 0; tg = tc; tb = tx; }
+            else if (hue < 240) { tr = 0; tg = tx; tb = tc; }
+            else if (hue < 300) { tr = tx; tg = 0; tb = tc; }
+            else { tr = tc; tg = 0; tb = tx; }
+            tr = Math.round((tr + tm) * 255);
+            tg = Math.round((tg + tm) * 255);
+            tb = Math.round((tb + tm) * 255);
+            document.documentElement.style.setProperty('--accent-text', 'rgb(' + tr + ', ' + tg + ', ' + tb + ')');
+          } else {
+            document.documentElement.style.setProperty('--accent-text', 'var(--accent)');
+          }
         }
       })();
     </script>
@@ -61,10 +100,10 @@
     <link rel="icon" href="/music-streamer/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/music-streamer/icons/icon-192.png" />
     <title>Music Streamer</title>
-    <script type="module" crossorigin src="/music-streamer/assets/index-qm38flJ0.js"></script>
+    <script type="module" crossorigin src="/music-streamer/assets/index-wb3LacuF.js"></script>
     <link rel="modulepreload" crossorigin href="/music-streamer/assets/BasicParser-CQ38SJP4.js">
     <link rel="modulepreload" crossorigin href="/music-streamer/assets/Errors-DphxX0j4.js">
-    <link rel="stylesheet" crossorigin href="/music-streamer/assets/index-DCBt7s6N.css">
+    <link rel="stylesheet" crossorigin href="/music-streamer/assets/index-7X5XGqId.css">
   <link rel="manifest" href="/music-streamer/manifest.webmanifest"></head>
   <body>
     <div id="app">
@@ -83,6 +122,34 @@
         <span id="import-text"></span>
       </div>
 
+      <nav id="sidebar" aria-label="Library">
+        <div id="sidebar-toggle-row">
+          <button id="sidebar-collapse-btn" class="sidebar-icon-btn" title="Collapse Sidebar"></button>
+        </div>
+
+        <div id="sidebar-songs" class="sidebar-item">
+          <span class="sidebar-item-icon" id="sidebar-songs-icon"></span>
+          <span class="sidebar-item-label">Songs</span>
+        </div>
+
+        <div id="sidebar-albums" class="sidebar-item">
+          <span class="sidebar-item-icon" id="sidebar-albums-icon"></span>
+          <span class="sidebar-item-label">Albums</span>
+        </div>
+
+        <div id="sidebar-artists" class="sidebar-item">
+          <span class="sidebar-item-icon" id="sidebar-artists-icon"></span>
+          <span class="sidebar-item-label">Artists</span>
+        </div>
+
+        <div id="sidebar-playlists-header" class="sidebar-item">
+          <span class="sidebar-item-icon" id="sidebar-playlists-icon"></span>
+          <span class="sidebar-item-label">Playlists</span>
+          <button id="sidebar-new-playlist-btn" class="sidebar-icon-btn" title="New playlist"></button>
+        </div>
+        <ul id="sidebar-playlist-list"></ul>
+      </nav>
+
       <main id="library">
         <div id="library-root">
           <ul id="library-root-list"></ul>
@@ -99,6 +166,20 @@
           <div id="sub-header-title-row">
             <h1 id="sub-title"></h1>
             <span id="sub-subtitle"></span>
+            <button id="songs-sort-btn" class="sort-pill hidden" title="Sort songs">
+              <span id="songs-sort-label">Custom Order</span>
+              <span id="songs-sort-chevron"></span>
+            </button>
+          </div>
+          <div id="sub-header-actions" class="hidden">
+            <button id="sub-play-btn" class="btn">
+              <span id="sub-play-icon"></span>
+              <span>Play</span>
+            </button>
+            <button id="sub-shuffle-btn" class="btn btn-secondary">
+              <span id="sub-shuffle-icon"></span>
+              <span>Shuffle</span>
+            </button>
           </div>
         </div>
 
@@ -107,6 +188,7 @@
           phone's storage. Once imported, it's saved on-device and plays with no
           internet connection needed.
         </p>
+        <p id="search-empty-state" class="empty-msg hidden">No songs match your search.</p>
         <p id="playlists-empty-state" class="empty-msg hidden">
           No playlists yet. Tap <strong>＋</strong> to create one.
         </p>
@@ -114,7 +196,15 @@
           This playlist is empty. Open a song's menu in Songs and tap "Add to Playlist".
         </p>
 
+        <div id="track-list-header" class="hidden">
+          <span>Title</span>
+          <span>Album</span>
+          <span class="track-list-header-time">Time</span>
+          <span></span>
+        </div>
         <ul id="track-list" class="hidden"></ul>
+        <ul id="album-list" class="nav-list hidden"></ul>
+        <ul id="artist-list" class="nav-list hidden"></ul>
         <ul id="playlist-list" class="hidden"></ul>
       </main>
 
@@ -126,26 +216,29 @@
           </div>
         </div>
 
-        <div id="seek-row">
-          <span id="time-current">0:00</span>
-          <input id="seek" type="range" min="0" max="1000" value="0" />
-          <span id="time-total">0:00</span>
+        <div id="player-center">
+          <div id="seek-row">
+            <span id="time-current">0:00</span>
+            <input id="seek" type="range" min="0" max="1000" value="0" />
+            <span id="time-total">0:00</span>
+          </div>
+
+          <div id="controls">
+            <div id="transport">
+              <button id="shuffle-btn" class="ctrl" title="Shuffle">🔀</button>
+              <div class="transport-core">
+                <button id="prev-btn" class="ctrl" title="Previous">⏮</button>
+                <button id="play-btn" class="ctrl big" title="Play/Pause">▶</button>
+                <button id="next-btn" class="ctrl" title="Next">⏭</button>
+              </div>
+              <button id="repeat-btn" class="ctrl" title="Repeat">🔁</button>
+            </div>
+          </div>
         </div>
 
-        <div id="controls">
-          <div id="transport">
-            <button id="shuffle-btn" class="ctrl" title="Shuffle">🔀</button>
-            <div class="transport-core">
-              <button id="prev-btn" class="ctrl" title="Previous">⏮</button>
-              <button id="play-btn" class="ctrl big" title="Play/Pause">▶</button>
-              <button id="next-btn" class="ctrl" title="Next">⏭</button>
-            </div>
-            <button id="repeat-btn" class="ctrl" title="Repeat">🔁</button>
-          </div>
-          <div id="volume-control">
-            <button id="volume-btn" class="ctrl" title="Mute">🔊</button>
-            <input id="volume" type="range" min="0" max="100" value="100" />
-          </div>
+        <div id="volume-control">
+          <button id="volume-btn" class="ctrl" title="Mute">🔊</button>
+          <input id="volume" type="range" min="0" max="100" value="100" />
         </div>
       </footer>
     </div>
@@ -153,6 +246,7 @@
     <input type="file" id="file-input" accept="audio/*,.flac,.m4a,.ogg,.wav,.mp3" multiple hidden />
     <input type="file" id="folder-input" webkitdirectory multiple hidden />
     <input type="file" id="playlist-cover-input" accept="image/*" hidden />
+    <input type="file" id="backup-file-input" accept="application/json,.json" hidden />
     <audio id="audio" preload="metadata"></audio>
     <div id="toast" role="status"></div>
 
@@ -195,13 +289,39 @@
           <div class="settings-section">
             <span class="settings-label">Accent Color</span>
             <div id="accent-preview"></div>
-            <div id="color-square-wrap">
+            <div id="color-square-wrap" tabindex="0" role="slider" aria-label="Saturation and brightness" aria-valuemin="0" aria-valuemax="100">
               <div id="color-square"></div>
               <div id="color-square-thumb"></div>
             </div>
-            <div class="slider-track-wrap" id="hue-track-area">
+            <div class="slider-track-wrap" id="hue-track-area" tabindex="0" role="slider" aria-label="Accent hue" aria-valuemin="0" aria-valuemax="360">
               <div class="gradient-track hue-gradient"></div>
               <div id="hue-thumb" class="color-thumb"></div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <span class="settings-label">Backup</span>
+            <p class="settings-hint">Your library lives only on this device — exporting a backup is the only way to recover it if this browser's storage is ever cleared.</p>
+            <div id="backup-actions-row">
+              <button id="export-library-btn" class="sheet-btn">Export Library</button>
+              <button id="import-library-btn" class="sheet-btn">Import Backup</button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <span class="settings-label">AI Cleanup</span>
+            <p class="settings-hint">Uses Google's Gemini API to tidy up messy song titles — stripping "(Official Video)", [Reprod. tags], channel names, and the like — for songs you import. Your key is stored only on this device and sent directly to Google; nothing passes through any other server.</p>
+            <input id="gemini-api-key-input" type="password" class="track-title-input" placeholder="Gemini API key" autocomplete="off" spellcheck="false" />
+            <div id="ai-cleanup-toggle-row">
+              <span id="ai-cleanup-toggle-label">Clean Up Titles on Import</span>
+              <button id="ai-cleanup-toggle" class="ios-toggle" role="switch" aria-checked="false">
+                <span class="ios-toggle-knob"></span>
+              </button>
+            </div>
+            <button id="ai-cleanup-existing-btn" class="sheet-btn">Clean Up Existing Songs</button>
+            <div id="ai-cleanup-progress" class="hidden">
+              <div id="ai-cleanup-progress-bar"><div id="ai-cleanup-progress-fill"></div></div>
+              <span id="ai-cleanup-progress-text"></span>
             </div>
           </div>
         </div>
@@ -259,6 +379,41 @@
         <h2>Add Songs</h2>
         <div id="add-tracks-list"></div>
         <button id="add-tracks-close-btn" class="sheet-btn cancel">Done</button>
+      </div>
+    </div>
+
+    <div id="sort-sheet" class="sheet-overlay hidden">
+      <div id="sort-sheet-backdrop" class="sheet-backdrop"></div>
+      <div class="sheet-panel">
+        <h2>Sort Songs</h2>
+        <button class="sheet-btn playlist-picker-row sort-option" data-sort="custom">
+          <span>Custom Order</span>
+          <span class="playlist-picker-check"></span>
+        </button>
+        <button class="sheet-btn playlist-picker-row sort-option" data-sort="title">
+          <span>Title</span>
+          <span class="playlist-picker-check"></span>
+        </button>
+        <button class="sheet-btn playlist-picker-row sort-option" data-sort="artist">
+          <span>Artist</span>
+          <span class="playlist-picker-check"></span>
+        </button>
+        <button class="sheet-btn playlist-picker-row sort-option" data-sort="recent">
+          <span>Date Added</span>
+          <span class="playlist-picker-check"></span>
+        </button>
+        <button id="sort-cancel-btn" class="sheet-btn cancel">Cancel</button>
+      </div>
+    </div>
+
+    <div id="ai-cleanup-sheet" class="sheet-overlay hidden">
+      <div id="ai-cleanup-sheet-backdrop" class="sheet-backdrop"></div>
+      <div class="sheet-panel">
+        <h2>Review AI Cleanup</h2>
+        <p class="settings-hint">Gemini suggested these changes for songs you just imported. Uncheck any you don't want, then apply.</p>
+        <div id="ai-cleanup-list"></div>
+        <button id="ai-cleanup-apply-btn" class="sheet-btn">Apply Selected</button>
+        <button id="ai-cleanup-skip-btn" class="sheet-btn cancel">Skip All</button>
       </div>
     </div>
 

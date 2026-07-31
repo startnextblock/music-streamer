@@ -1,0 +1,2003 @@
+/* Self-hosted (not Google Fonts CDN) so the app keeps working fully offline —
+   the whole point of this being an installed PWA. Both are variable fonts:
+   one file covers every weight used below. Matched to the font choice in
+   ~/Projects/Money Tracker (Inter for body/UI text, Outfit for headings and
+   numeric displays). */
+@font-face {
+  font-family: 'Inter';
+  src: url('/music-streamer/assets/inter-variable-Dx4kXJAl.woff2') format('woff2');
+  font-weight: 400 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Outfit';
+  src: url('/music-streamer/assets/outfit-variable-Bc-8i84L.woff2') format('woff2');
+  font-weight: 500 700;
+  font-display: swap;
+}
+
+/* Liquid Glass System Tokens - Apple HIG & Reference Image Match */
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit', system-ui, -apple-system, sans-serif;
+
+  /* Corner radius scale */
+  --radius-sm: 14px;
+  --radius-md: 18px;
+  --radius-lg: 28px;
+  --radius-xl: 36px;
+  --radius-pill: 999px;
+
+  /* Type scale — every font-size in the app should reference one of these
+     rather than an ad hoc px/rem value, so a new label always lands on an
+     existing size instead of introducing a slightly-off one. In rem (not
+     px) so the whole scale respects the user's browser/OS text-size
+     setting — the web's equivalent of Dynamic Type — rather than being
+     locked to a fixed pixel size regardless of their accessibility
+     preferences. #html sets no font-size of its own, so 1rem is the
+     browser default (16px) unless the user has changed it.
+     Semantic role aliases below are what component CSS should actually
+     reach for; the numeric tokens are the scale they're built from. */
+  --text-2xs: 0.6875rem; /* 11px */
+  --text-xs: 0.8125rem; /* 13px */
+  --text-sm: 0.875rem; /* 14px */
+  --text-base: 0.9375rem; /* 15px */
+  --text-md: 1rem; /* 16px */
+  --text-lg: 1.0625rem; /* 17px */
+  --text-xl: 1.25rem; /* 20px */
+  --text-2xl: 1.375rem; /* 22px */
+  --text-display: 2rem; /* 32px */
+
+  /* Semantic type roles — name a size by what it's FOR, not by its number,
+     so a new component picks a role instead of guessing which numeric
+     step "looks right". Purely additive: every existing --text-* usage
+     is untouched, these are aliases layered on top. */
+  --text-role-caption: var(--text-2xs); /* uppercase labels, counts */
+  --text-role-footnote: var(--text-xs); /* secondary metadata: artist, subtitle */
+  --text-role-subhead: var(--text-sm); /* compact emphasis: button labels, nav counts */
+  --text-role-body: var(--text-base); /* default reading/input text */
+  --text-role-callout: var(--text-md); /* sheet buttons, dialog actions */
+  --text-role-headline: var(--text-lg); /* list row titles */
+  --text-role-title3: var(--text-xl); /* app title, now-playing title */
+  --text-role-title2: var(--text-2xl); /* dialog headings */
+  --text-role-title1: var(--text-display); /* screen titles (Songs, Playlists) */
+
+  /* Spacing scale — an 8pt grid (with a 4pt half-step). Every padding,
+     margin and gap in the app should snap to one of these instead of a
+     one-off pixel value. A few things are deliberately NOT on this scale
+     and stay as literals, because they aren't spacing at all: sub-pixel
+     typographic nudges (baseline offsets under text), icon-clearance
+     insets tied to a specific icon's own geometry, and the sidebar's
+     nested-indent offset (alignment under a parent icon, not rhythm). */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+
+  /* Motion & State Timings */
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
+
+  /* Structural constants */
+  --tap-target: 44px; /* Apple HIG minimum hit target, used on every tappable control */
+  --border-width-glass: 1.5px; /* the hairline weight every glass-panel border shares */
+  --topbar-height: 68px; /* #topbar's real rendered height (--space-3 padding × 2 + the 44px tap-target row) — anything that lays out beneath it (e.g. #library, #sidebar) should derive from this instead of guessing its own number */
+  --color-danger: #ff6b6b;
+
+  /* Interaction-state tints — one shared scale instead of each component
+     picking its own color-mix percentage by eye. Audited from what was
+     already in use (5/8/8/12/12/12/12/15/18/18%, clustered but with two
+     unexplained outliers) and collapsed to four named tiers so a new
+     hover/press/drag state reaches for one of these instead of guessing a
+     new number. */
+  --state-hover: color-mix(in srgb, var(--text) 8%, transparent); /* pointer resting over a row/button */
+  --state-press: color-mix(in srgb, var(--text) 12%, transparent); /* actively tapped/clicked */
+  --state-lifted: color-mix(in srgb, var(--text) 18%, transparent); /* picked up — drag-reorder */
+  --state-selected: color-mix(in srgb, var(--accent) 18%, transparent); /* persistent selection, e.g. active sidebar item */
+  --state-current: color-mix(in srgb, var(--text) 5%, transparent); /* the currently-playing row — deliberately fainter than hover/press since the accent-colored title already carries the signal */
+  --shadow-thumb-slider: 0 1px 4px rgba(0, 0, 0, 0.5); /* seek/volume slider thumbs */
+  --shadow-thumb-circle: 0 2px 6px rgba(0, 0, 0, 0.35); /* round drag thumbs (color picker, toggle knob) */
+
+  /* Elevation — z-index, shadow and material aren't three independent
+     choices per component, they're three properties of one "how raised is
+     this surface" decision. Documented together here so a new fixed/
+     overlay element picks all three consistently instead of guessing a
+     z-index and then reaching for whichever shadow looks fine:
+       standing chrome   z-sidebar/z-topbar · shadow-glass  · material-regular
+       player bar        z-player           · shadow-player · material-regular
+       sheets             z-sheet            · shadow-glass  · material-thick
+       toast              z-toast            · shadow-glass  · material-thin
+     Toast sits above sheets, not below: several sheet actions (Export
+     Library, the AI cleanup buttons, …) fire a toast without closing the
+     sheet they were clicked from — a toast is a transient, above-everything
+     notification, the same way an iOS HUD stays visible over a modal, so it
+     needs to outrank a still-open sheet rather than render invisibly behind
+     its backdrop. (This was a real, silent bug: the settings sheet stays
+     open across most of its own actions, so any toast fired from inside it
+     was previously rendering underneath the sheet the whole time.)
+     Kept as a single numeric scale (rather than named steps) so a new
+     fixed/overlay element can slot its z-index in without guessing
+     whether e.g. 45 would land above or below the player bar. */
+  --z-sidebar: 20;
+  --z-topbar: 30;
+  --z-player: 40;
+  --z-sheet: 100;
+  --z-toast: 150;
+
+  /* Materials — three named blur/saturation tiers assigned by a surface's
+     role, not picked per component. "Regular" (unchanged from before this
+     existed) stays on every position:fixed piece of standing chrome —
+     topbar, sidebar, player bar — since those recompute their blur every
+     scroll frame and a previous pass already found heavier blur too
+     costly there. "Thick" goes on sheets specifically: a modal sheet isn't
+     recomputing against a scrolling page behind it, so it can afford (and
+     benefits from) obscuring content more strongly. "Thin" is for small,
+     low-stakes ephemeral surfaces like the toast. saturate/contrast/
+     brightness beyond this were tried and dropped for all three tiers —
+     their visual contribution was marginal next to their GPU cost. */
+  --material-thin: blur(8px) saturate(160%);
+  --material-regular: blur(12px) saturate(180%);
+  --material-thick: blur(20px) saturate(180%);
+  --glass-blur: var(--material-regular); /* kept as an alias — this was the only tier that existed before */
+}
+
+:root[data-theme="dark"] {
+  --bg: #080a0d;
+  --bg-elevated: rgba(18, 22, 28, 0.65);
+  /* A black (not white) tint, matching light theme's own direction below —
+     both themes recess a tertiary surface rather than raising it. Also
+     fixes a real contrast shortfall: the previous white-tint version left
+     .settings-label at 3.26:1 against a 4.5:1 requirement. */
+  --bg-tertiary: rgba(0, 0, 0, 0.2); /* innermost nested surface — e.g. settings-group sitting inside a sheet-panel */
+  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.04) 35%, rgba(0, 0, 0, 0.15) 75%, rgba(255, 255, 255, 0.1) 100%), rgba(18, 22, 28, 0.65);
+  --glass-bg-elevated: linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.05) 35%, rgba(0, 0, 0, 0.2) 75%, rgba(255, 255, 255, 0.15) 100%), rgba(18, 22, 28, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.45);
+  --glass-border-light: rgba(255, 255, 255, 0.65);
+  --shadow-glass: 0 24px 60px -10px rgba(0, 0, 0, 0.8), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.9), inset 0 -1.5px 0.5px 0 rgba(0, 0, 0, 0.25);
+  --shadow-player: 0 28px 70px -10px rgba(0, 0, 0, 0.85), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.9), inset 0 -1.5px 0.5px 0 rgba(0, 0, 0, 0.25);
+  --shadow-player-drop: 0 -10px 50px rgba(0, 0, 0, 0.25);
+  --accent: #f5a623;
+  --accent-rgb: 245, 166, 35;
+  --accent-ink: #1a1d21;
+  --accent-text: var(--accent); /* dark surfaces already give the plain accent enough contrast as text */
+  --text: #ffffff;
+  --text-dim: #94a3b8;
+  --label-tertiary: rgba(255, 255, 255, 0.45); /* de-emphasized text: disabled labels, inline hints — calibrated to hold 4.5:1 against every surface it appears on (topbar, sheet panel, settings-group, page bg) */
+  --label-quaternary: rgba(255, 255, 255, 0.25); /* NOT for text — measures 2.2:1 or worse everywhere, well under WCAG AA. For non-text decoration only: faint dividers, disabled-icon fills, anything judged under the 3:1 non-text threshold or no threshold at all */
+  --border: rgba(255, 255, 255, 0.15);
+  --search-bg: rgba(255, 255, 255, 0.12);
+  --bg-gradient: radial-gradient(ellipse at 80% 15%, rgba(var(--accent-rgb), 0.28) 0%, transparent 45%), radial-gradient(ellipse at 15% 85%, rgba(var(--accent-rgb), 0.22) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(4, 5, 7, 0.95) 0%, transparent 85%);
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #e2e8f0;
+  --bg-elevated: rgba(248, 250, 252, 0.85);
+  --bg-tertiary: rgba(15, 23, 42, 0.04); /* innermost nested surface — e.g. settings-group sitting inside a sheet-panel */
+  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.6) 40%, rgba(226, 232, 240, 0.4) 100%), rgba(248, 250, 252, 0.85);
+  --glass-bg-elevated: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.7) 40%, rgba(226, 232, 240, 0.5) 100%), rgba(248, 250, 252, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.95);
+  --glass-border-light: rgba(255, 255, 255, 0.99);
+  --shadow-glass: 0 16px 40px -10px rgba(15, 23, 42, 0.12), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.95), inset 0 -1.5px 0.5px 0 rgba(0, 0, 0, 0.12);
+  --shadow-player: 0 20px 50px -10px rgba(15, 23, 42, 0.15), inset 0 1.5px 0.5px 0 rgba(255, 255, 255, 0.95), inset 0 -1.5px 0.5px 0 rgba(0, 0, 0, 0.12);
+  --shadow-player-drop: 0 -6px 24px rgba(15, 23, 42, 0.1);
+  --accent: #f5a623;
+  --accent-rgb: 245, 166, 35;
+  --accent-ink: #1a1d21;
+  --accent-text: #8c5800; /* darkened variant (same default hue/sat, lower value) — the plain accent fails WCAG AA as text against light surfaces */
+  --text: #0f172a;
+  --label-tertiary: rgba(15, 23, 42, 0.63); /* de-emphasized text: disabled labels, inline hints. Was 0.35 (2.1-2.2:1, failed WCAG AA everywhere it could be used) — raised to hold 4.5:1 against every surface it appears on (topbar, sheet panel, settings-group, page bg) */
+  --label-quaternary: rgba(15, 23, 42, 0.18); /* NOT for text — measures 1.5:1 or worse everywhere, well under WCAG AA. For non-text decoration only: faint dividers, disabled-icon fills, anything judged under the 3:1 non-text threshold or no threshold at all */
+  --text-dim: #475569;
+  --border: rgba(15, 23, 42, 0.12);
+  --search-bg: rgba(255, 255, 255, 0.55);
+  --bg-gradient: radial-gradient(ellipse at 80% 15%, rgba(var(--accent-rgb), 0.15) 0%, transparent 50%), radial-gradient(ellipse at 15% 85%, rgba(var(--accent-rgb), 0.12) 0%, transparent 55%), radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.95) 0%, transparent 85%);
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  /* color-mix against --text (not a literal white) so the thumb stays
+     visible in light mode too — a white-alpha thumb on a light background
+     was nearly invisible before. */
+  scrollbar-color: color-mix(in srgb, var(--text) 35%, transparent) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Devices/browsers without backdrop-filter support render the low-opacity
+   glass gradients as near-invisible — swap to a solid, more opaque
+   background so those surfaces still read as intentional cards instead of
+   looking broken. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  #topbar,
+  #player-bar,
+  .sheet-panel,
+  #toast,
+  #import-status,
+  .settings-group {
+    background: var(--bg-elevated) !important;
+  }
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text) 30%, transparent);
+  border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text) 60%, transparent);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--accent);
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  background-image: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#app {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding-top: env(safe-area-inset-top);
+  position: relative;
+}
+
+#topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: calc(var(--space-3) + env(safe-area-inset-top, 0px)) var(--space-5) var(--space-3);
+  margin: 0;
+  background: radial-gradient(circle at 50% 100%, rgba(var(--accent-rgb), 0.2) 0%, transparent 65%), var(--glass-bg-elevated);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: var(--border-width-glass) solid var(--glass-border-light);
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
+  box-shadow: inset 0 -1px 1px 0 rgba(255, 255, 255, 0.6), 0 8px 24px rgba(var(--accent-rgb), 0.15);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-topbar);
+}
+
+#app-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+
+#search {
+  flex: 1;
+  min-width: 0;
+  margin-right: -4px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--search-bg); /* this token existed but was never actually wired up — the field was hardcoded to a fixed black fill regardless of theme */
+  /* The icon itself is still a hardcoded-white data-URI — background-image
+     can't take currentColor, so it can't follow the theme the way the rest
+     of this rule now does. Tracked as a follow-up: switching it to an
+     actual inline SVG element would fix this properly. */
+  background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" width="16" height="16" fill="rgba(255,255,255,0.6)" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: 12px center;
+  border: var(--border-width-glass) solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  padding: var(--space-2) var(--space-3) var(--space-2) 36px; /* left inset stays literal — it clears the background-image icon, not layout rhythm */
+  font-size: var(--text-base);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2), inset 0 -1px 1px rgba(255, 255, 255, 0.15);
+  transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+}
+
+/* Light theme's --search-bg is a much more opaque white fill sitting
+   directly on an already-light topbar, so the icon needs to go dark here
+   too — otherwise a white icon on a near-white field would all but
+   disappear. A second copy of the same path is the only option while the
+   icon is a background-image data-URI rather than a real element (see the
+   note on #search above). */
+:root[data-theme="light"] #search {
+  background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" width="16" height="16" fill="rgba(15,23,42,0.55)" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>');
+}
+
+#search::-webkit-search-decoration,
+#search::-webkit-search-cancel-button,
+#search::-webkit-search-results-button,
+#search::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  display: none;
+}
+
+#search::placeholder {
+  color: color-mix(in srgb, var(--text) 65%, transparent);
+}
+
+#search:focus {
+  /* background-color, not the background shorthand — the shorthand resets
+     every other background sub-property to its initial value, which was
+     silently wiping out the search icon's background-image/repeat/position
+     (set on #search itself) the instant the field focused. Since the field
+     auto-focuses on open, this was visible essentially every time search
+     was used: a pre-existing bug, caught by actually running the app. */
+  background-color: var(--state-press);
+  border-color: color-mix(in srgb, var(--text) 60%, transparent);
+  outline: none;
+}
+
+.topbar-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.btn {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-3);
+  min-height: var(--tap-target);
+  min-width: var(--tap-target);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.3);
+  transition: transform var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.btn.icon-btn {
+  background: none;
+  border: none;
+  color: var(--text);
+  width: var(--tap-target);
+  height: var(--tap-target);
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.btn:active {
+  transform: scale(0.95);
+  opacity: 0.9;
+}
+
+/* One disabled treatment shared by every real <button>-based control in
+   the app, instead of each variant defining (or forgetting to define) its
+   own. Only .btn ever actually gets disabled today (the import button
+   while a file is importing) — the rest is forward-compatible groundwork
+   so the next control that needs a disabled state doesn't invent a new
+   opacity value. (.sidebar-item is a <div>, not a button, so it can't
+   participate in :disabled at all — it would need its own aria-disabled
+   treatment if that's ever needed.) */
+.btn:disabled,
+.ctrl:disabled,
+.sheet-btn:disabled,
+.sidebar-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+#import-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  margin: var(--space-2) var(--space-4) 0;
+  border: var(--border-width-glass) solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg-elevated);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+#import-status.hidden {
+  display: none;
+}
+
+/* One progress-bar component, rendered in two places: the topbar's
+   import-status strip (visible when nothing else is covering the page —
+   file imports, or AI cleanup triggered from an import) and a copy inline
+   in the Settings sheet's AI Cleanup section (for "Clean Up Existing
+   Songs", triggered from inside a sheet that would otherwise hide the
+   topbar one behind its own backdrop — same bug class the toast z-index
+   fix addressed, just for a progress bar instead of a toast). Both share
+   identical styling via grouped selectors so it reads as the same control
+   regardless of where it's rendered. */
+#import-bar,
+#ai-cleanup-progress-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--text) 20%, transparent);
+  overflow: hidden;
+}
+
+#import-bar-fill,
+#ai-cleanup-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width var(--duration-fast) var(--ease-standard);
+}
+
+/* AI cleanup is one batched network request, not a per-file loop, so there's
+   no real "N of M" to report — an indeterminate sliding segment (the same
+   pattern as a native OS progress bar with no known duration) reads as "this
+   is actively working" without implying a fake percentage. */
+#import-bar-fill.indeterminate,
+#ai-cleanup-progress-fill.indeterminate {
+  width: 30%;
+  animation: indeterminate-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes indeterminate-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+#ai-cleanup-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+#ai-cleanup-progress.hidden {
+  display: none;
+}
+
+#import-text,
+#ai-cleanup-progress-text {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(120px + env(safe-area-inset-bottom));
+  transform: translateX(-50%) translateY(20px);
+  background: var(--glass-bg-elevated);
+  backdrop-filter: var(--material-thin);
+  -webkit-backdrop-filter: var(--material-thin);
+  border: var(--border-width-glass) solid var(--glass-border-light);
+  color: var(--text);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-glass);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-base) var(--ease-standard), transform var(--duration-base) var(--ease-standard);
+  z-index: var(--z-toast);
+  max-width: 90vw;
+  text-align: center;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+#library {
+  flex: 1;
+  overflow-y: auto;
+  padding: calc(var(--topbar-height) + var(--space-4) + env(safe-area-inset-top, 0px)) 0 220px; /* bottom clearance stays literal — approximate player-bar height, not grid spacing */
+}
+
+#track-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.track-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  min-height: 58px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+:root[data-density="compact"] .track-row {
+  padding: var(--space-2) var(--space-4);
+  min-height: 46px;
+}
+
+.track-row:last-child {
+  border-bottom: none;
+}
+
+.track-row:active {
+  background: var(--state-press);
+}
+
+.track-row.playing {
+  background: var(--state-current);
+}
+
+.track-row.playing .track-title {
+  color: var(--accent-text);
+}
+
+.track-row-dragging {
+  background: var(--state-lifted);
+  box-shadow: var(--shadow-glass);
+  border-radius: var(--radius-md);
+}
+
+.track-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.track-title {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-artist {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-duration {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.track-more {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: var(--space-1);
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+}
+
+.track-more:active {
+  color: var(--text);
+  background: var(--state-press);
+}
+
+.track-title-input {
+  width: 100%;
+  font: inherit;
+  font-size: var(--text-base);
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--accent);
+  padding: 0 0 2px;
+  outline: none;
+}
+
+.sheet-overlay.hidden {
+  display: none;
+}
+
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+/* Kept laid out (never display:none) so the backdrop blur and panel
+   transform can actually animate — the generic .hidden utility forces
+   display:none !important everywhere else, so this overrides it
+   specifically for sheets with equal !important but higher specificity.
+   The backdrop's blur radius and the panel's opacity/transform animate
+   independently (rather than fading the whole overlay's opacity as one
+   block), so the blur genuinely ramps up instead of an already-blurred
+   layer just popping in at reduced opacity. */
+.sheet-overlay.hidden {
+  display: flex !important;
+  pointer-events: none;
+}
+
+.sheet-overlay.hidden .sheet-backdrop {
+  background-color: rgba(0, 0, 0, 0);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.sheet-overlay.hidden .sheet-panel {
+  opacity: 0;
+  transform: scale(0.92) translateY(16px);
+}
+
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: var(--material-thick);
+  -webkit-backdrop-filter: var(--material-thick);
+  /* backdrop-filter is intentionally NOT transitioned — animating a blur
+     radius means recomputing the blur every single frame of the transition,
+     one of the most GPU-expensive things a mobile browser can do. Only the
+     backdrop's tint fades; the blur itself switches instantly. */
+  transition: background-color var(--duration-base) var(--ease-standard);
+}
+
+.sheet-panel {
+  /* Concentric corners: this is the one radius anyone picks by hand for a
+     sheet. Everything nested inside (sheet-btn, settings-group, …) derives
+     its own radius from this custom property minus its inset from the
+     panel edge, instead of choosing an independent radius token — so a
+     rounded child always reads as sharing the same corner center as its
+     rounded parent, the way Apple's Liquid Glass material actually behaves. */
+  --panel-radius: var(--radius-xl);
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  background: var(--glass-bg-elevated);
+  backdrop-filter: var(--material-thick);
+  -webkit-backdrop-filter: var(--material-thick);
+  border: var(--border-width-glass) solid var(--glass-border-light);
+  border-radius: var(--panel-radius);
+  padding: var(--space-4) var(--space-5) calc(var(--space-4) + env(safe-area-inset-bottom));
+  gap: var(--space-1);
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-glass);
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transition: transform var(--duration-base) var(--ease-standard), opacity var(--duration-base) var(--ease-standard);
+}
+
+.sheet-btn {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  padding: var(--space-3) var(--space-2);
+  min-height: var(--tap-target);
+  border-radius: calc(var(--panel-radius) - var(--space-4)); /* concentric with .sheet-panel */
+  text-align: center;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.sheet-btn:active {
+  background: var(--state-press);
+}
+
+.sheet-btn.danger {
+  color: var(--color-danger);
+}
+
+.sheet-btn.cancel {
+  color: var(--text-dim);
+  border-top: 1px solid var(--glass-border);
+  margin-top: var(--space-1);
+  padding-top: var(--space-3);
+  border-radius: 0;
+}
+
+#settings-close {
+  background: var(--bg-tertiary);
+  color: var(--text);
+  border-top: none;
+  border: var(--border-width-glass) solid var(--glass-border-light);
+  box-shadow: var(--shadow-glass);
+  margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-pill);
+}
+
+.hidden {
+  display: none !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--duration-base);
+  animation-timing-function: var(--ease-standard);
+}
+
+.empty-msg {
+  padding: var(--space-8) var(--space-6) 0;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+
+#library-root-list,
+.nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.track-album {
+  display: none;
+}
+
+#track-list-header {
+  display: none;
+}
+
+.lib-nav-label {
+  flex: 1;
+  font-size: var(--text-lg);
+  font-weight: 500;
+}
+
+.lib-nav-count {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.lib-nav-chevron {
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+}
+
+#playlist-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1) var(--space-4) 0;
+}
+
+.playlist-card {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.9) 0%, rgba(var(--accent-rgb), 0.3) 100%);
+  border: var(--border-width-glass) solid var(--glass-border);
+  box-shadow: var(--shadow-glass);
+  cursor: pointer;
+}
+
+.playlist-card-cover {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.playlist-card-more {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: none;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.playlist-card-info {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 70%);
+  color: #ffffff;
+}
+
+.playlist-card-title {
+  font-weight: 700;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playlist-card-count {
+  font-size: var(--text-2xs);
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.playlist-card-rename-input {
+  width: 100%;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: #ffffff;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #ffffff;
+  padding: 0 0 2px;
+  outline: none;
+}
+
+#sub-header {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1) var(--space-4) var(--space-2);
+}
+
+#sub-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sub-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px; /* icon-to-label micro gap, not layout rhythm — same category as the baseline nudges below */
+  background: none;
+  border: none;
+  color: var(--text);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
+  min-height: var(--tap-target);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+#sub-back-icon {
+  display: flex;
+  align-items: center;
+}
+
+#sub-back-label {
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+#sub-header-title-row {
+  margin-top: 2px;
+}
+
+#sub-title {
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  margin: 0;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#sub-subtitle {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* Deliberately not a native <select>: its closed state can be styled, but
+   its open dropdown list is drawn by the OS, not the page — no CSS reaches
+   it, so it always looks like a stray OS control dropped into an otherwise
+   fully custom (glass, rounded, themed) interface. Opens the same
+   sheet-overlay/sheet-btn picker every other choice in this app already
+   uses (Add to Playlist, playlist actions, …) instead. */
+.sort-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  background: var(--bg-tertiary);
+  border: var(--border-width-glass) solid var(--glass-border-light);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: var(--space-1) var(--space-3);
+  min-height: 32px;
+  cursor: pointer;
+  box-shadow: var(--shadow-glass);
+}
+
+.sort-pill svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+}
+
+#sub-header-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+#sub-play-btn,
+#sub-shuffle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+#sub-play-icon svg,
+#sub-shuffle-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+/* A second, quieter button treatment alongside the solid-accent .btn —
+   Shuffle sits next to Play but shouldn't compete with it for attention, the
+   same relationship Music.app's own album header gives its two actions.
+   Reuses the exact background/border/shadow recipe #settings-close already
+   established for "a raised but non-primary action". */
+.btn.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text);
+  border: var(--border-width-glass) solid var(--glass-border-light);
+  box-shadow: var(--shadow-glass);
+}
+
+.settings-hint {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin: 0 0 var(--space-3);
+}
+
+#backup-actions-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+#backup-actions-row .sheet-btn {
+  flex: 1;
+  background: var(--bg-tertiary);
+  border: var(--border-width-glass) solid var(--glass-border-light);
+}
+
+#ai-cleanup-existing-btn {
+  margin-top: var(--space-3);
+  background: var(--bg-tertiary);
+  border: var(--border-width-glass) solid var(--glass-border-light);
+}
+
+#new-playlist-name-input,
+#edit-track-title-input,
+#edit-track-artist-input {
+  margin: var(--space-1) 0 var(--space-5);
+  font-size: var(--text-md);
+}
+
+.playlist-picker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.playlist-picker-check {
+  color: var(--accent-text);
+  display: flex;
+  align-items: center;
+}
+
+.sheet-panel h2 {
+  margin: var(--space-2) 0 var(--space-4);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+/* Nested inside the sheet panel, which already carries the diagonal glossy
+   gradient (--glass-bg-elevated) — reusing that same gradient here would
+   stack two overlapping sheens. Border/inset-highlight stay unified with
+   every other card; the background itself is flattened. */
+.settings-group {
+  margin-bottom: var(--space-5);
+  border-radius: calc(var(--panel-radius) - var(--space-4)); /* concentric with .sheet-panel, same rule as .sheet-btn */
+  background: var(--bg-tertiary);
+  border: var(--border-width-glass) solid var(--glass-border-light);
+  box-shadow: var(--shadow-glass);
+}
+
+.settings-section {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-section:last-child {
+  border-bottom: none;
+}
+
+.settings-label {
+  display: block;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--space-2);
+}
+
+#theme-toggle-row,
+#ai-cleanup-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#ai-cleanup-toggle-row {
+  margin-top: var(--space-3);
+}
+
+#theme-toggle-label,
+#ai-cleanup-toggle-label {
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text);
+}
+
+#gemini-api-key-input {
+  width: 100%;
+  margin-bottom: var(--space-1);
+}
+
+#ai-cleanup-list {
+  max-height: 40vh;
+  overflow-y: auto;
+  margin-bottom: var(--space-2);
+}
+
+.ai-cleanup-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.ai-cleanup-row:last-child {
+  border-bottom: none;
+}
+
+.ai-cleanup-row input[type='checkbox'] {
+  margin-top: 3px;
+  accent-color: var(--accent);
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.ai-cleanup-row-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.ai-cleanup-old {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  text-decoration: line-through;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-cleanup-new {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--accent-text);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ios-toggle {
+  width: 51px;
+  height: 31px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--text) 15%, transparent);
+  border: var(--border-width-glass) solid var(--glass-border);
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background-color var(--duration-base) var(--ease-standard);
+}
+
+.ios-toggle.active {
+  background: var(--accent);
+}
+
+.ios-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: var(--shadow-thumb-circle);
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+.ios-toggle.active .ios-toggle-knob {
+  transform: translateX(20px);
+}
+
+#accent-preview {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin: var(--space-1) auto var(--space-7);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.slider-track-wrap {
+  position: relative;
+  height: 6px;
+  margin: var(--space-5) var(--space-2);
+  touch-action: none;
+}
+
+/* Both custom pickers are plain divs made keyboard-operable via tabindex +
+   arrow-key handlers — :focus-visible is what actually shows that they're
+   focused, since neither has a browser-native focus style to fall back on. */
+#hue-track-area:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 6px;
+  border-radius: var(--radius-pill);
+}
+
+.gradient-track {
+  height: 6px;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.hue-gradient {
+  background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+}
+
+#color-square-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 0.65;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin: var(--space-1) 0 var(--space-6);
+  touch-action: none;
+  cursor: pointer;
+  border: var(--border-width-glass) solid var(--glass-border);
+}
+
+#color-square-wrap:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+#color-square {
+  position: absolute;
+  inset: 0;
+}
+
+#color-square-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2.5px solid #fff;
+  box-shadow: var(--shadow-thumb-circle), inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+}
+
+.color-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: -8px;
+  left: 0;
+  box-shadow: var(--shadow-thumb-circle);
+  pointer-events: none;
+}
+
+#player-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0 auto;
+  max-width: 100%;
+  z-index: var(--z-player);
+  background: var(--glass-bg-elevated);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  padding: var(--space-5) var(--space-5) calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  border: none;
+  box-shadow: var(--shadow-player-drop), var(--shadow-player);
+}
+
+#player-bar.hidden {
+  display: none;
+}
+
+#now-playing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 var(--space-4);
+  padding: 0 var(--space-1);
+  width: 100%;
+  position: relative;
+}
+
+/* Transparent grouping wrapper — on mobile this changes nothing (still a
+   plain flex-column stack of seek-row then transport, same as when they
+   were direct children of #player-bar). It exists so the desktop layout
+   below can treat "seek bar + transport" as one center column, distinct
+   from now-playing on the left and volume on the right. */
+#player-center {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.np-text-group {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 var(--space-4);
+}
+
+.np-title-text {
+  display: block;
+  width: 100%;
+  font-weight: 700;
+  font-size: var(--text-xl);
+  letter-spacing: -0.4px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.np-artist-text {
+  display: block;
+  width: 100%;
+  font-size: var(--text-sm);
+  /* Plain --text-dim still measured only 3.26:1 here (needs 4.5:1) — the
+     player bar's translucent, blurred surface isn't a flat color, and the
+     area behind the now-playing text happens to sample lighter than, say,
+     the seek-row timestamps a few rows down, which use the same --text-dim
+     and pass fine. Blended slightly toward --text rather than touching the
+     shared token everywhere else it's already passing. */
+  color: color-mix(in srgb, var(--text-dim) 60%, var(--text) 40%);
+  font-weight: 500;
+  margin-top: 4px;
+  /* the old opacity:0.8 here was stacking a second dimming step on top of
+     the already-dimmed --text-dim, making the shortfall worse. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#seek-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-4);
+}
+
+#seek-row span {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-dim);
+  width: 36px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+#time-total {
+  text-align: right;
+}
+
+#seek {
+  flex: 1;
+  height: 24px;
+  background: transparent !important;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+}
+
+/* outline:none above removes the browser's default (which renders as a
+   rectangle around the whole track and looks broken against the custom
+   thumb) — this replaces it with a ring around the thumb specifically,
+   shown only for keyboard focus so a mouse click doesn't flash it. */
+#seek:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#seek:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#seek::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 0;
+  right: 0;
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--accent) var(--val, 0%), color-mix(in srgb, var(--text) 25%, transparent) var(--val, 0%));
+  pointer-events: none;
+  z-index: 0;
+}
+
+#seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  position: relative;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: none;
+  box-shadow: var(--shadow-thumb-slider);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+#seek:active::-webkit-slider-thumb {
+  transform: scale(1.25);
+}
+
+#seek::-moz-range-track {
+  height: 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text) 25%, transparent);
+  border: none;
+}
+
+#seek::-moz-range-progress {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+#seek::-moz-range-thumb {
+  position: relative;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: none;
+  box-shadow: var(--shadow-thumb-slider);
+}
+
+#controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: var(--space-5);
+  width: 100%;
+}
+
+#transport {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 var(--space-2);
+}
+
+.transport-core {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+#volume-control {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+#volume {
+  width: 100px;
+  height: 24px;
+  background: transparent !important;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+}
+
+#volume:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#volume:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#volume::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 0;
+  right: 0;
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--accent) var(--val, 0%), color-mix(in srgb, var(--text) 25%, transparent) var(--val, 0%));
+  pointer-events: none;
+}
+
+#volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-thumb-slider);
+}
+
+#volume::-moz-range-track {
+  height: 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text) 25%, transparent);
+  border: none;
+}
+
+#volume::-moz-range-progress {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+#volume::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  box-shadow: var(--shadow-thumb-slider);
+}
+
+/* Desktop player bar: now-playing anchored left, transport + seek bar
+   centered as one column, volume anchored right — replacing the mobile
+   layout (everything centered, stacked in one column) rather than just
+   reflowing it. This is also what actually fixes the volume/repeat
+   overlap from before: #volume-control is a real flex sibling now, not an
+   absolutely-positioned overlay fighting #transport for the same space. */
+@media (min-width: 700px) {
+  #player-bar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-6);
+    padding: var(--space-3) var(--space-6) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* now-playing and volume both get flex-basis 0, meaning they only ever
+     receive space via flex-grow — never a guaranteed share when space is
+     tight, since flex-shrink math skips zero-basis items entirely. Without
+     the min-width floor, either one can be squeezed to literally nothing
+     (confirmed: now-playing's text vanished at 760px, all the deficit
+     landing on it while #player-center held its full width). The min-width
+     is what actually reserves their space; flex:1 only governs how they
+     split whatever's left over. */
+  #now-playing {
+    flex: 1 1 0;
+    min-width: 140px;
+    justify-content: flex-start;
+    margin: 0;
+    padding: 0;
+  }
+
+  .np-text-group {
+    align-items: flex-start;
+    text-align: left;
+    padding: 0;
+  }
+
+  #player-center {
+    flex: 2 1 0;
+    min-width: 0;
+    max-width: 560px;
+    gap: var(--space-1);
+  }
+
+  #controls {
+    margin-top: 0;
+  }
+
+  #seek-row {
+    padding: 0;
+  }
+
+  #volume-control {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 140px;
+    justify-content: flex-end;
+  }
+}
+
+/* ---- Desktop sidebar ---- */
+
+#sidebar {
+  display: none;
+}
+
+@media (min-width: 860px) {
+  :root {
+    --sidebar-width: 260px;
+  }
+
+  #sidebar {
+    display: block;
+    position: fixed;
+    top: calc(var(--topbar-height) + env(safe-area-inset-top, 0px));
+    left: 0;
+    bottom: 0;
+    width: var(--sidebar-width);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: var(--space-4) var(--space-3) calc(var(--space-6) + env(safe-area-inset-bottom));
+    border-right: var(--border-width-glass) solid var(--glass-border);
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    z-index: var(--z-sidebar);
+    transition: width var(--duration-base) var(--ease-standard);
+  }
+
+  #topbar,
+  #library,
+  #player-bar {
+    padding-left: calc(var(--sidebar-width) + var(--space-5));
+    transition: padding-left var(--duration-base) var(--ease-standard);
+  }
+
+  /* The bottom player bar keeps its own horizontal padding for its inner
+     controls — adding sidebar offset directly to it would double up, so
+     it gets a left inset via margin instead of padding. */
+  #player-bar {
+    padding-left: var(--space-5);
+    margin-left: var(--sidebar-width);
+    transition: margin-left var(--duration-base) var(--ease-standard);
+  }
+
+  #library {
+    padding-right: 0;
+  }
+
+  /* Icon-only rail, mirroring the collapsed sidebar in Finder/Mail/Xcode:
+     narrower width, no text labels, no nested playlist rows (there's no
+     room to keep them legible or tappable at this width) — just the
+     top-level destinations as icons. Everything that reads --sidebar-width
+     (topbar/library/player-bar padding, #sidebar's own width) already
+     follows this automatically since it's the same custom property, just
+     reassigned here.
+
+     The label/playlist-list/new-playlist-button hiding below deliberately
+     never uses display:none — a display change can't be transitioned, so
+     toggling it snaps instantly no matter how long the sidebar's own width
+     transition runs, which read as janky against the otherwise-smooth
+     collapse. Each is instead animated shut on its own terms (opacity +
+     the specific dimension that actually shrinks it to nothing) so the
+     whole collapse reads as one continuous motion instead of "slide, then
+     pop". .sidebar-item's own icon position is left untouched (no
+     justify-content swap) for the same reason: justify-content is a
+     discrete keyword, not an interpolable value, so animating it would
+     just reintroduce the identical snap. */
+  :root[data-sidebar="collapsed"] {
+    --sidebar-width: 72px;
+  }
+
+  :root[data-sidebar="collapsed"] #sidebar {
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+  }
+
+  :root[data-sidebar="collapsed"] .sidebar-item-label {
+    opacity: 0;
+    max-width: 0;
+  }
+
+  :root[data-sidebar="collapsed"] #sidebar-new-playlist-btn {
+    opacity: 0;
+    min-width: 0;
+    max-width: 0;
+    margin-left: -8px; /* cancels the row's gap so the icon doesn't leave a trailing blank slot once its own width has animated to 0 */
+  }
+
+  :root[data-sidebar="collapsed"] #sidebar-playlist-list {
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0;
+  }
+
+  /* #sidebar-toggle-row holds a single fixed-size button (not shrinking
+     content), so recentering it isn't subject to the display/justify-content
+     "can't animate" problem above — it just relocates instantly alongside
+     the button's own fixed position, which reads fine at this size. */
+  :root[data-sidebar="collapsed"] #sidebar-toggle-row {
+    justify-content: center;
+  }
+
+  /* Track rows switch from the mobile flex layout (title/artist stacked,
+     duration pinned to the far right with a wide empty gap between) to a
+     real table: an explicit Album column fills the space a plain flex:1
+     item was leaving blank, and the header row below gives the columns
+     names. lib-nav-row reuses .track-row for its padding/hover behavior but
+     has entirely different children (label/count/chevron) — excluded here
+     so it keeps its own flex layout instead of being forced into this
+     grid. */
+  .track-row:not(.lib-nav-row) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 260px) 60px 44px;
+    column-gap: var(--space-3);
+  }
+
+  .track-album {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .track-duration {
+    text-align: right;
+  }
+
+  #track-list-header:not(.hidden) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 260px) 60px 44px;
+    column-gap: var(--space-3);
+    padding: 0 var(--space-4) var(--space-2);
+    font-size: var(--text-2xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--space-1);
+  }
+
+  .track-list-header-time {
+    text-align: right;
+  }
+
+  /* Search stays icon-gated on mobile (chrome space is precious there), but
+     at desktop width there's room to keep it resident in the topbar like
+     Music.app's toolbar search field, rather than requiring a tap to reveal
+     it. #search's own !important .hidden (from the shared utility) is
+     beaten here on specificity: an ID selector outranks a class selector
+     even when both carry !important. */
+  /* app-title's own flex:1 (mobile default) would otherwise compete with
+     #search's auto margin for the same free space — both trying to claim
+     it means the title's flex-basis:0% wins nothing and its text gets
+     squeezed toward zero width. Pinned to content size here so the auto
+     margin is the only thing absorbing the leftover space. */
+  #app-title {
+    flex: 0 1 auto;
+  }
+
+  #search {
+    display: block !important;
+    flex: 0 1 320px;
+    margin-left: auto;
+  }
+
+  #search-btn {
+    display: none;
+  }
+}
+
+#sidebar-toggle-row {
+  display: flex;
+  margin-bottom: var(--space-2);
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--text);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.sidebar-item:hover {
+  background: var(--state-hover);
+}
+
+/* Text stays --text rather than --accent here deliberately: accent-colored
+   text on an accent-tinted background is the same hue family fighting
+   itself, and fails WCAG AA in both themes (measured ~2.1–3.3:1 against a
+   4.5:1 requirement) — the tinted background alone is the active-state
+   signal, at full contrast against the surrounding label color. */
+.sidebar-item.active {
+  background: var(--state-selected);
+  color: var(--text);
+}
+
+.sidebar-item-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.sidebar-item-label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* 200px is a real cap, not a stand-in for "uncapped" — it's about what a
+     label can actually reach inside the expanded (260px) sidebar anyway, so
+     this doesn't change anything visually there. It matters for the
+     collapse transition below: animating from a realistic width down to 0
+     spends its whole duration doing visible work, instead of most of the
+     transition being "shrinking through space nothing was using" if this
+     started from an arbitrarily large number. */
+  opacity: 1;
+  max-width: 200px;
+  transition: opacity var(--duration-fast) var(--ease-standard), max-width var(--duration-base) var(--ease-standard);
+}
+
+#sidebar-playlists-header {
+  margin-top: var(--space-2);
+}
+
+.sidebar-icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: var(--space-1);
+  min-width: 28px;
+  min-height: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+}
+
+.sidebar-icon-btn:hover {
+  color: var(--text);
+  background: var(--state-hover);
+}
+
+/* Overrides .sidebar-icon-btn's own min-width for the collapse animation
+   specifically — #sidebar-collapse-btn shares that base class too, but must
+   stay full-size and clickable in the collapsed rail (it's what expands the
+   sidebar back), so the shrink-to-nothing treatment is scoped to this one
+   button by id rather than added to the shared class. */
+#sidebar-new-playlist-btn {
+  opacity: 1;
+  min-width: 28px;
+  max-width: 28px;
+  margin-left: 0;
+  transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), opacity var(--duration-base) var(--ease-standard), min-width var(--duration-base) var(--ease-standard), max-width var(--duration-base) var(--ease-standard), margin-left var(--duration-base) var(--ease-standard);
+}
+
+#sidebar-playlist-list {
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  opacity: 1;
+  max-height: 600px; /* a real cap (typical playlist counts), not a stand-in
+     for "however tall this gets" — same reasoning as .sidebar-item-label's
+     max-width above: an arbitrarily huge starting value would make most of
+     the collapse transition invisible, then clip everything in its last
+     few percent. */
+  overflow: hidden;
+  transition: opacity var(--duration-fast) var(--ease-standard), max-height var(--duration-base) var(--ease-standard), margin-top var(--duration-base) var(--ease-standard);
+}
+
+.sidebar-playlist-item {
+  display: block;
+  padding: var(--space-2) var(--space-3) var(--space-2) 34px; /* left inset stays literal — nested indent under the parent icon+label, not layout rhythm */
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+
+.sidebar-playlist-item:hover {
+  background: var(--state-hover);
+  color: var(--text);
+}
+
+.sidebar-playlist-item.active {
+  background: var(--state-selected);
+  color: var(--text);
+}
+
+.ctrl {
+  background: none;
+  border: none;
+  color: var(--text);
+  padding: var(--space-2);
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: transform var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+}
+
+.ctrl:active {
+  transform: scale(0.88);
+}
+
+#shuffle-btn,
+#repeat-btn {
+  color: var(--text-dim);
+}
+
+.ctrl.active {
+  color: var(--accent-text);
+}
+
+/* #id + .active must outrank the plain #id specificity above, or the
+   dim-by-default rule always wins and the active state never shows. */
+#shuffle-btn.active,
+#repeat-btn.active {
+  color: var(--accent-text);
+  animation: toggle-pop 0.3s var(--ease-standard);
+}
+
+@keyframes toggle-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Ultra-Translucent Liquid Glass Lens Play Button matching reference image */
+/* Solid accent fill rather than glass — backdrop-filter rendering proved too
+   inconsistent across devices/browsers for a control this small and this
+   central. A deterministic solid color also ties it into the same accent
+   language already used for active shuffle/repeat and the seek fill,
+   making it read as the player's primary action. */
+.ctrl.big {
+  width: 64px;
+  height: 64px;
+  position: relative;
+  background: var(--accent);
+  border: none;
+  color: var(--accent-ink);
+  border-radius: 50%;
+  box-shadow: 0 10px 28px -4px rgba(var(--accent-rgb), 0.5);
+  transition: transform var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+}
+
+.ctrl.big:active {
+  transform: scale(0.92);
+}
