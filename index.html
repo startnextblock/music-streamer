@@ -17,6 +17,14 @@
               : 'dark';
         document.documentElement.setAttribute('data-theme', theme);
 
+        // Same before-first-paint treatment as the theme above: read the
+        // desktop sidebar's collapsed/expanded state before layout happens
+        // so it doesn't visibly snap from wide to narrow (or vice versa)
+        // right after load.
+        if (localStorage.getItem('sidebarCollapsed') === 'true') {
+          document.documentElement.setAttribute('data-sidebar', 'collapsed');
+        }
+
         // Number(null) is 0, not NaN — on a fresh profile with nothing saved
         // yet, that reads as "hue 0, sat 0, val 0" (black) instead of "no
         // saved value, use the default amber below". Reading the raw string
@@ -111,9 +119,23 @@
       </div>
 
       <nav id="sidebar" aria-label="Library">
+        <div id="sidebar-toggle-row">
+          <button id="sidebar-collapse-btn" class="sidebar-icon-btn" title="Collapse Sidebar"></button>
+        </div>
+
         <div id="sidebar-songs" class="sidebar-item">
           <span class="sidebar-item-icon" id="sidebar-songs-icon"></span>
           <span class="sidebar-item-label">Songs</span>
+        </div>
+
+        <div id="sidebar-albums" class="sidebar-item">
+          <span class="sidebar-item-icon" id="sidebar-albums-icon"></span>
+          <span class="sidebar-item-label">Albums</span>
+        </div>
+
+        <div id="sidebar-artists" class="sidebar-item">
+          <span class="sidebar-item-icon" id="sidebar-artists-icon"></span>
+          <span class="sidebar-item-label">Artists</span>
         </div>
 
         <div id="sidebar-playlists-header" class="sidebar-item">
@@ -140,6 +162,20 @@
           <div id="sub-header-title-row">
             <h1 id="sub-title"></h1>
             <span id="sub-subtitle"></span>
+            <button id="songs-sort-btn" class="sort-pill hidden" title="Sort songs">
+              <span id="songs-sort-label">Custom Order</span>
+              <span id="songs-sort-chevron"></span>
+            </button>
+          </div>
+          <div id="sub-header-actions" class="hidden">
+            <button id="sub-play-btn" class="btn">
+              <span id="sub-play-icon"></span>
+              <span>Play</span>
+            </button>
+            <button id="sub-shuffle-btn" class="btn btn-secondary">
+              <span id="sub-shuffle-icon"></span>
+              <span>Shuffle</span>
+            </button>
           </div>
         </div>
 
@@ -156,7 +192,15 @@
           This playlist is empty. Open a song's menu in Songs and tap "Add to Playlist".
         </p>
 
+        <div id="track-list-header" class="hidden">
+          <span>Title</span>
+          <span>Album</span>
+          <span class="track-list-header-time">Time</span>
+          <span></span>
+        </div>
         <ul id="track-list" class="hidden"></ul>
+        <ul id="album-list" class="nav-list hidden"></ul>
+        <ul id="artist-list" class="nav-list hidden"></ul>
         <ul id="playlist-list" class="hidden"></ul>
       </main>
 
@@ -198,6 +242,7 @@
     <input type="file" id="file-input" accept="audio/*,.flac,.m4a,.ogg,.wav,.mp3" multiple hidden />
     <input type="file" id="folder-input" webkitdirectory multiple hidden />
     <input type="file" id="playlist-cover-input" accept="image/*" hidden />
+    <input type="file" id="backup-file-input" accept="application/json,.json" hidden />
     <audio id="audio" preload="metadata"></audio>
     <div id="toast" role="status"></div>
 
@@ -247,6 +292,32 @@
             <div class="slider-track-wrap" id="hue-track-area" tabindex="0" role="slider" aria-label="Accent hue" aria-valuemin="0" aria-valuemax="360">
               <div class="gradient-track hue-gradient"></div>
               <div id="hue-thumb" class="color-thumb"></div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <span class="settings-label">Backup</span>
+            <p class="settings-hint">Your library lives only on this device — exporting a backup is the only way to recover it if this browser's storage is ever cleared.</p>
+            <div id="backup-actions-row">
+              <button id="export-library-btn" class="sheet-btn">Export Library</button>
+              <button id="import-library-btn" class="sheet-btn">Import Backup</button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <span class="settings-label">AI Cleanup</span>
+            <p class="settings-hint">Uses Google's Gemini API to tidy up messy song titles — stripping "(Official Video)", [Reprod. tags], channel names, and the like — for songs you import. Your key is stored only on this device and sent directly to Google; nothing passes through any other server.</p>
+            <input id="gemini-api-key-input" type="password" class="track-title-input" placeholder="Gemini API key" autocomplete="off" spellcheck="false" />
+            <div id="ai-cleanup-toggle-row">
+              <span id="ai-cleanup-toggle-label">Clean Up Titles on Import</span>
+              <button id="ai-cleanup-toggle" class="ios-toggle" role="switch" aria-checked="false">
+                <span class="ios-toggle-knob"></span>
+              </button>
+            </div>
+            <button id="ai-cleanup-existing-btn" class="sheet-btn">Clean Up Existing Songs</button>
+            <div id="ai-cleanup-progress" class="hidden">
+              <div id="ai-cleanup-progress-bar"><div id="ai-cleanup-progress-fill"></div></div>
+              <span id="ai-cleanup-progress-text"></span>
             </div>
           </div>
         </div>
@@ -304,6 +375,41 @@
         <h2>Add Songs</h2>
         <div id="add-tracks-list"></div>
         <button id="add-tracks-close-btn" class="sheet-btn cancel">Done</button>
+      </div>
+    </div>
+
+    <div id="sort-sheet" class="sheet-overlay hidden">
+      <div id="sort-sheet-backdrop" class="sheet-backdrop"></div>
+      <div class="sheet-panel">
+        <h2>Sort Songs</h2>
+        <button class="sheet-btn playlist-picker-row sort-option" data-sort="custom">
+          <span>Custom Order</span>
+          <span class="playlist-picker-check"></span>
+        </button>
+        <button class="sheet-btn playlist-picker-row sort-option" data-sort="title">
+          <span>Title</span>
+          <span class="playlist-picker-check"></span>
+        </button>
+        <button class="sheet-btn playlist-picker-row sort-option" data-sort="artist">
+          <span>Artist</span>
+          <span class="playlist-picker-check"></span>
+        </button>
+        <button class="sheet-btn playlist-picker-row sort-option" data-sort="recent">
+          <span>Date Added</span>
+          <span class="playlist-picker-check"></span>
+        </button>
+        <button id="sort-cancel-btn" class="sheet-btn cancel">Cancel</button>
+      </div>
+    </div>
+
+    <div id="ai-cleanup-sheet" class="sheet-overlay hidden">
+      <div id="ai-cleanup-sheet-backdrop" class="sheet-backdrop"></div>
+      <div class="sheet-panel">
+        <h2>Review AI Cleanup</h2>
+        <p class="settings-hint">Gemini suggested these changes for songs you just imported. Uncheck any you don't want, then apply.</p>
+        <div id="ai-cleanup-list"></div>
+        <button id="ai-cleanup-apply-btn" class="sheet-btn">Apply Selected</button>
+        <button id="ai-cleanup-skip-btn" class="sheet-btn cancel">Skip All</button>
       </div>
     </div>
 

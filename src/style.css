@@ -111,16 +111,24 @@
      z-index and then reaching for whichever shadow looks fine:
        standing chrome   z-sidebar/z-topbar · shadow-glass  · material-regular
        player bar        z-player           · shadow-player · material-regular
-       toast             z-toast            · shadow-glass  · material-thin
-       sheets            z-sheet            · shadow-glass  · material-thick
+       sheets             z-sheet            · shadow-glass  · material-thick
+       toast              z-toast            · shadow-glass  · material-thin
+     Toast sits above sheets, not below: several sheet actions (Export
+     Library, the AI cleanup buttons, …) fire a toast without closing the
+     sheet they were clicked from — a toast is a transient, above-everything
+     notification, the same way an iOS HUD stays visible over a modal, so it
+     needs to outrank a still-open sheet rather than render invisibly behind
+     its backdrop. (This was a real, silent bug: the settings sheet stays
+     open across most of its own actions, so any toast fired from inside it
+     was previously rendering underneath the sheet the whole time.)
      Kept as a single numeric scale (rather than named steps) so a new
      fixed/overlay element can slot its z-index in without guessing
      whether e.g. 45 would land above or below the player bar. */
   --z-sidebar: 20;
   --z-topbar: 30;
   --z-player: 40;
-  --z-toast: 50;
   --z-sheet: 100;
+  --z-toast: 150;
 
   /* Materials — three named blur/saturation tiers assigned by a surface's
      role, not picked per component. "Regular" (unchanged from before this
@@ -435,7 +443,17 @@ button {
   display: none;
 }
 
-#import-bar {
+/* One progress-bar component, rendered in two places: the topbar's
+   import-status strip (visible when nothing else is covering the page —
+   file imports, or AI cleanup triggered from an import) and a copy inline
+   in the Settings sheet's AI Cleanup section (for "Clean Up Existing
+   Songs", triggered from inside a sheet that would otherwise hide the
+   topbar one behind its own backdrop — same bug class the toast z-index
+   fix addressed, just for a progress bar instead of a toast). Both share
+   identical styling via grouped selectors so it reads as the same control
+   regardless of where it's rendered. */
+#import-bar,
+#ai-cleanup-progress-bar {
   flex: 1;
   height: 4px;
   border-radius: 2px;
@@ -443,14 +461,46 @@ button {
   overflow: hidden;
 }
 
-#import-bar-fill {
+#import-bar-fill,
+#ai-cleanup-progress-fill {
   height: 100%;
   width: 0%;
   background: var(--accent);
   transition: width var(--duration-fast) var(--ease-standard);
 }
 
-#import-text {
+/* AI cleanup is one batched network request, not a per-file loop, so there's
+   no real "N of M" to report — an indeterminate sliding segment (the same
+   pattern as a native OS progress bar with no known duration) reads as "this
+   is actively working" without implying a fake percentage. */
+#import-bar-fill.indeterminate,
+#ai-cleanup-progress-fill.indeterminate {
+  width: 30%;
+  animation: indeterminate-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes indeterminate-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+#ai-cleanup-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+#ai-cleanup-progress.hidden {
+  display: none;
+}
+
+#import-text,
+#ai-cleanup-progress-text {
   font-size: var(--text-xs);
   color: var(--text-dim);
   white-space: nowrap;
@@ -733,10 +783,19 @@ button {
   line-height: 1.6;
 }
 
-#library-root-list {
+#library-root-list,
+.nav-list {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+.track-album {
+  display: none;
+}
+
+#track-list-header {
+  display: none;
 }
 
 .lib-nav-label {
@@ -898,6 +957,92 @@ button {
   margin-top: 2px;
 }
 
+/* Deliberately not a native <select>: its closed state can be styled, but
+   its open dropdown list is drawn by the OS, not the page — no CSS reaches
+   it, so it always looks like a stray OS control dropped into an otherwise
+   fully custom (glass, rounded, themed) interface. Opens the same
+   sheet-overlay/sheet-btn picker every other choice in this app already
+   uses (Add to Playlist, playlist actions, …) instead. */
+.sort-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  background: var(--bg-tertiary);
+  border: var(--border-width-glass) solid var(--glass-border-light);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: var(--space-1) var(--space-3);
+  min-height: 32px;
+  cursor: pointer;
+  box-shadow: var(--shadow-glass);
+}
+
+.sort-pill svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+}
+
+#sub-header-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+#sub-play-btn,
+#sub-shuffle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+#sub-play-icon svg,
+#sub-shuffle-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+/* A second, quieter button treatment alongside the solid-accent .btn —
+   Shuffle sits next to Play but shouldn't compete with it for attention, the
+   same relationship Music.app's own album header gives its two actions.
+   Reuses the exact background/border/shadow recipe #settings-close already
+   established for "a raised but non-primary action". */
+.btn.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text);
+  border: var(--border-width-glass) solid var(--glass-border-light);
+  box-shadow: var(--shadow-glass);
+}
+
+.settings-hint {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin: 0 0 var(--space-3);
+}
+
+#backup-actions-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+#backup-actions-row .sheet-btn {
+  flex: 1;
+  background: var(--bg-tertiary);
+  border: var(--border-width-glass) solid var(--glass-border-light);
+}
+
+#ai-cleanup-existing-btn {
+  margin-top: var(--space-3);
+  background: var(--bg-tertiary);
+  border: var(--border-width-glass) solid var(--glass-border-light);
+}
+
 #new-playlist-name-input,
 #edit-track-title-input,
 #edit-track-artist-input {
@@ -957,16 +1102,78 @@ button {
   margin-bottom: var(--space-2);
 }
 
-#theme-toggle-row {
+#theme-toggle-row,
+#ai-cleanup-toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-#theme-toggle-label {
+#ai-cleanup-toggle-row {
+  margin-top: var(--space-3);
+}
+
+#theme-toggle-label,
+#ai-cleanup-toggle-label {
   font-size: var(--text-base);
   font-weight: 500;
   color: var(--text);
+}
+
+#gemini-api-key-input {
+  width: 100%;
+  margin-bottom: var(--space-1);
+}
+
+#ai-cleanup-list {
+  max-height: 40vh;
+  overflow-y: auto;
+  margin-bottom: var(--space-2);
+}
+
+.ai-cleanup-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.ai-cleanup-row:last-child {
+  border-bottom: none;
+}
+
+.ai-cleanup-row input[type='checkbox'] {
+  margin-top: 3px;
+  accent-color: var(--accent);
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.ai-cleanup-row-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.ai-cleanup-old {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  text-decoration: line-through;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-cleanup-new {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--accent-text);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ios-toggle {
@@ -1439,18 +1646,21 @@ button {
     bottom: 0;
     width: var(--sidebar-width);
     overflow-y: auto;
+    overflow-x: hidden;
     padding: var(--space-4) var(--space-3) calc(var(--space-6) + env(safe-area-inset-bottom));
     border-right: var(--border-width-glass) solid var(--glass-border);
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     z-index: var(--z-sidebar);
+    transition: width var(--duration-base) var(--ease-standard);
   }
 
   #topbar,
   #library,
   #player-bar {
     padding-left: calc(var(--sidebar-width) + var(--space-5));
+    transition: padding-left var(--duration-base) var(--ease-standard);
   }
 
   /* The bottom player bar keeps its own horizontal padding for its inner
@@ -1459,11 +1669,141 @@ button {
   #player-bar {
     padding-left: var(--space-5);
     margin-left: var(--sidebar-width);
+    transition: margin-left var(--duration-base) var(--ease-standard);
   }
 
   #library {
     padding-right: 0;
   }
+
+  /* Icon-only rail, mirroring the collapsed sidebar in Finder/Mail/Xcode:
+     narrower width, no text labels, no nested playlist rows (there's no
+     room to keep them legible or tappable at this width) — just the
+     top-level destinations as icons. Everything that reads --sidebar-width
+     (topbar/library/player-bar padding, #sidebar's own width) already
+     follows this automatically since it's the same custom property, just
+     reassigned here.
+
+     The label/playlist-list/new-playlist-button hiding below deliberately
+     never uses display:none — a display change can't be transitioned, so
+     toggling it snaps instantly no matter how long the sidebar's own width
+     transition runs, which read as janky against the otherwise-smooth
+     collapse. Each is instead animated shut on its own terms (opacity +
+     the specific dimension that actually shrinks it to nothing) so the
+     whole collapse reads as one continuous motion instead of "slide, then
+     pop". .sidebar-item's own icon position is left untouched (no
+     justify-content swap) for the same reason: justify-content is a
+     discrete keyword, not an interpolable value, so animating it would
+     just reintroduce the identical snap. */
+  :root[data-sidebar="collapsed"] {
+    --sidebar-width: 72px;
+  }
+
+  :root[data-sidebar="collapsed"] #sidebar {
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+  }
+
+  :root[data-sidebar="collapsed"] .sidebar-item-label {
+    opacity: 0;
+    max-width: 0;
+  }
+
+  :root[data-sidebar="collapsed"] #sidebar-new-playlist-btn {
+    opacity: 0;
+    min-width: 0;
+    max-width: 0;
+    margin-left: -8px; /* cancels the row's gap so the icon doesn't leave a trailing blank slot once its own width has animated to 0 */
+  }
+
+  :root[data-sidebar="collapsed"] #sidebar-playlist-list {
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0;
+  }
+
+  /* #sidebar-toggle-row holds a single fixed-size button (not shrinking
+     content), so recentering it isn't subject to the display/justify-content
+     "can't animate" problem above — it just relocates instantly alongside
+     the button's own fixed position, which reads fine at this size. */
+  :root[data-sidebar="collapsed"] #sidebar-toggle-row {
+    justify-content: center;
+  }
+
+  /* Track rows switch from the mobile flex layout (title/artist stacked,
+     duration pinned to the far right with a wide empty gap between) to a
+     real table: an explicit Album column fills the space a plain flex:1
+     item was leaving blank, and the header row below gives the columns
+     names. lib-nav-row reuses .track-row for its padding/hover behavior but
+     has entirely different children (label/count/chevron) — excluded here
+     so it keeps its own flex layout instead of being forced into this
+     grid. */
+  .track-row:not(.lib-nav-row) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 260px) 60px 44px;
+    column-gap: var(--space-3);
+  }
+
+  .track-album {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .track-duration {
+    text-align: right;
+  }
+
+  #track-list-header:not(.hidden) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 260px) 60px 44px;
+    column-gap: var(--space-3);
+    padding: 0 var(--space-4) var(--space-2);
+    font-size: var(--text-2xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--space-1);
+  }
+
+  .track-list-header-time {
+    text-align: right;
+  }
+
+  /* Search stays icon-gated on mobile (chrome space is precious there), but
+     at desktop width there's room to keep it resident in the topbar like
+     Music.app's toolbar search field, rather than requiring a tap to reveal
+     it. #search's own !important .hidden (from the shared utility) is
+     beaten here on specificity: an ID selector outranks a class selector
+     even when both carry !important. */
+  /* app-title's own flex:1 (mobile default) would otherwise compete with
+     #search's auto margin for the same free space — both trying to claim
+     it means the title's flex-basis:0% wins nothing and its text gets
+     squeezed toward zero width. Pinned to content size here so the auto
+     margin is the only thing absorbing the leftover space. */
+  #app-title {
+    flex: 0 1 auto;
+  }
+
+  #search {
+    display: block !important;
+    flex: 0 1 320px;
+    margin-left: auto;
+  }
+
+  #search-btn {
+    display: none;
+  }
+}
+
+#sidebar-toggle-row {
+  display: flex;
+  margin-bottom: var(--space-2);
 }
 
 .sidebar-item {
@@ -1505,6 +1845,16 @@ button {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* 200px is a real cap, not a stand-in for "uncapped" — it's about what a
+     label can actually reach inside the expanded (260px) sidebar anyway, so
+     this doesn't change anything visually there. It matters for the
+     collapse transition below: animating from a realistic width down to 0
+     spends its whole duration doing visible work, instead of most of the
+     transition being "shrinking through space nothing was using" if this
+     started from an arbitrarily large number. */
+  opacity: 1;
+  max-width: 200px;
+  transition: opacity var(--duration-fast) var(--ease-standard), max-width var(--duration-base) var(--ease-standard);
 }
 
 #sidebar-playlists-header {
@@ -1531,10 +1881,31 @@ button {
   background: var(--state-hover);
 }
 
+/* Overrides .sidebar-icon-btn's own min-width for the collapse animation
+   specifically — #sidebar-collapse-btn shares that base class too, but must
+   stay full-size and clickable in the collapsed rail (it's what expands the
+   sidebar back), so the shrink-to-nothing treatment is scoped to this one
+   button by id rather than added to the shared class. */
+#sidebar-new-playlist-btn {
+  opacity: 1;
+  min-width: 28px;
+  max-width: 28px;
+  margin-left: 0;
+  transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), opacity var(--duration-base) var(--ease-standard), min-width var(--duration-base) var(--ease-standard), max-width var(--duration-base) var(--ease-standard), margin-left var(--duration-base) var(--ease-standard);
+}
+
 #sidebar-playlist-list {
   list-style: none;
   margin: var(--space-1) 0 0;
   padding: 0;
+  opacity: 1;
+  max-height: 600px; /* a real cap (typical playlist counts), not a stand-in
+     for "however tall this gets" — same reasoning as .sidebar-item-label's
+     max-width above: an arbitrarily huge starting value would make most of
+     the collapse transition invisible, then clip everything in its last
+     few percent. */
+  overflow: hidden;
+  transition: opacity var(--duration-fast) var(--ease-standard), max-height var(--duration-base) var(--ease-standard), margin-top var(--duration-base) var(--ease-standard);
 }
 
 .sidebar-playlist-item {

@@ -59,8 +59,16 @@ const importFolderOption = el('import-folder-option');
 const importCancelBtn = el('import-cancel');
 
 const sidebarEl = el('sidebar');
+const sidebarCollapseBtn = el('sidebar-collapse-btn');
 const sidebarSongsEl = el('sidebar-songs');
 const sidebarSongsIconEl = el('sidebar-songs-icon');
+const sidebarAlbumsEl = el('sidebar-albums');
+const sidebarAlbumsIconEl = el('sidebar-albums-icon');
+const sidebarArtistsEl = el('sidebar-artists');
+const sidebarArtistsIconEl = el('sidebar-artists-icon');
+const albumListEl = el('album-list');
+const artistListEl = el('artist-list');
+const trackListHeaderEl = el('track-list-header');
 const sidebarPlaylistsHeaderEl = el('sidebar-playlists-header');
 const sidebarPlaylistsIconEl = el('sidebar-playlists-icon');
 const sidebarNewPlaylistBtn = el('sidebar-new-playlist-btn');
@@ -107,6 +115,32 @@ const editTrackTitleInput = el('edit-track-title-input');
 const editTrackArtistInput = el('edit-track-artist-input');
 const editTrackSaveBtn = el('edit-track-save-btn');
 const editTrackCancelBtn = el('edit-track-cancel-btn');
+const songsSortBtn = el('songs-sort-btn');
+const songsSortLabelEl = el('songs-sort-label');
+const songsSortChevronEl = el('songs-sort-chevron');
+const sortSheet = el('sort-sheet');
+const sortSheetBackdrop = el('sort-sheet-backdrop');
+const sortCancelBtn = el('sort-cancel-btn');
+const sortOptionBtns = document.querySelectorAll('.sort-option');
+const subHeaderActionsEl = el('sub-header-actions');
+const subPlayBtn = el('sub-play-btn');
+const subShuffleBtn = el('sub-shuffle-btn');
+const subPlayIconEl = el('sub-play-icon');
+const subShuffleIconEl = el('sub-shuffle-icon');
+const exportLibraryBtn = el('export-library-btn');
+const importLibraryBtn = el('import-library-btn');
+const backupFileInput = el('backup-file-input');
+const geminiApiKeyInput = el('gemini-api-key-input');
+const aiCleanupToggle = el('ai-cleanup-toggle');
+const aiCleanupExistingBtn = el('ai-cleanup-existing-btn');
+const aiCleanupProgressEl = el('ai-cleanup-progress');
+const aiCleanupProgressFillEl = el('ai-cleanup-progress-fill');
+const aiCleanupProgressTextEl = el('ai-cleanup-progress-text');
+const aiCleanupSheet = el('ai-cleanup-sheet');
+const aiCleanupSheetBackdrop = el('ai-cleanup-sheet-backdrop');
+const aiCleanupListEl = el('ai-cleanup-list');
+const aiCleanupApplyBtn = el('ai-cleanup-apply-btn');
+const aiCleanupSkipBtn = el('ai-cleanup-skip-btn');
 
 // ---- state ----
 let tracks = []; // full library, sorted
@@ -126,8 +160,24 @@ let currentVal = 90;
 let activeQueue = []; // current play queue (unshuffled), whatever list play was triggered from
 
 let playlists = []; // { id, name, trackIds: [], order }
-let currentView = 'root'; // 'root' | 'songs' | 'playlists' | 'playlist-detail'
+let currentView = 'root'; // 'root' | 'songs' | 'albums' | 'album-detail' | 'artists' | 'artist-detail' | 'playlists' | 'playlist-detail'
 let currentPlaylistId = null;
+let currentAlbumName = null;
+let currentArtistName = null;
+let currentDetailQueue = []; // whatever list the sub-header's Play/Shuffle buttons should act on — refreshed by whichever detail view last rendered
+let songsSortMode = localStorage.getItem('songsSortMode') || 'custom'; // 'custom' | 'title' | 'artist' | 'recent' — a display-only resort, never touches the stored manual `order`
+
+const SORT_LABELS = { custom: 'Custom Order', title: 'Title', artist: 'Artist', recent: 'Date Added' };
+
+let geminiApiKey = localStorage.getItem('geminiApiKey') || '';
+let aiCleanupEnabled = localStorage.getItem('aiCleanupEnabled') === 'true';
+let pendingAiSuggestions = []; // [{ trackId, oldTitle, oldArtist, newTitle, newArtist }] awaiting review in the AI cleanup sheet
+// 'gemini-flash-latest' is Google's stable rolling alias for its current
+// recommended flash model, rather than a specific dated version like
+// 'gemini-2.5-flash' — pinning to a specific version risks a 404 for any
+// API key/account that doesn't have that exact model enabled, which is
+// exactly what happened during testing.
+const GEMINI_MODEL = 'gemini-flash-latest';
 let actionSheetPlaylistId = null;
 let playlistActionId = null; // playlist targeted by the playlist row's own action sheet
 let playlistPickerTrackId = null; // track targeted by the "Add to Playlist" sheet
@@ -170,12 +220,25 @@ const ICONS = {
   search:
     '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>',
   note: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+  album:
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>',
+  sidebarToggle:
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>',
+  artist:
+    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-6 8-6s8 2 8 6"/></svg>',
   list: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>',
   close: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   check: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
 };
 
 init();
+
+function applySidebarCollapsed(collapsed) {
+  if (collapsed) document.documentElement.setAttribute('data-sidebar', 'collapsed');
+  else document.documentElement.removeAttribute('data-sidebar');
+  localStorage.setItem('sidebarCollapsed', String(collapsed));
+  sidebarCollapseBtn.title = collapsed ? 'Expand Sidebar' : 'Collapse Sidebar';
+}
 
 function getTheme() {
   return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
@@ -406,6 +469,240 @@ function hideImportSheet() {
   closeSheet(importSheet);
 }
 
+function showSortSheet() {
+  updateSortOptionChecks();
+  openSheet(sortSheet);
+}
+
+function hideSortSheet() {
+  closeSheet(sortSheet);
+}
+
+function updateSortOptionChecks() {
+  sortOptionBtns.forEach((btn) => {
+    const check = btn.querySelector('.playlist-picker-check');
+    check.innerHTML = btn.dataset.sort === songsSortMode ? ICONS.check : '';
+  });
+}
+
+function showAiCleanupSheet() {
+  renderAiCleanupList();
+  openSheet(aiCleanupSheet);
+}
+
+function hideAiCleanupSheet() {
+  closeSheet(aiCleanupSheet);
+  pendingAiSuggestions = [];
+}
+
+function renderAiCleanupList() {
+  aiCleanupListEl.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (const s of pendingAiSuggestions) {
+    const label = document.createElement('label');
+    label.className = 'ai-cleanup-row';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = true;
+    checkbox.dataset.trackId = s.trackId;
+
+    const textWrap = document.createElement('div');
+    textWrap.className = 'ai-cleanup-row-text';
+    const oldEl = document.createElement('div');
+    oldEl.className = 'ai-cleanup-old';
+    oldEl.textContent = s.oldArtist ? `${s.oldTitle} — ${s.oldArtist}` : s.oldTitle;
+    const newEl = document.createElement('div');
+    newEl.className = 'ai-cleanup-new';
+    newEl.textContent = s.newArtist ? `${s.newTitle} — ${s.newArtist}` : s.newTitle;
+    textWrap.append(oldEl, newEl);
+
+    label.append(checkbox, textWrap);
+    frag.appendChild(label);
+  }
+  aiCleanupListEl.appendChild(frag);
+}
+
+async function applyAiCleanupSuggestions() {
+  const checkedIds = new Set(
+    Array.from(aiCleanupListEl.querySelectorAll('input[type="checkbox"]'))
+      .filter((cb) => cb.checked)
+      .map((cb) => cb.dataset.trackId)
+  );
+  const toApply = pendingAiSuggestions.filter((s) => checkedIds.has(s.trackId));
+
+  if (!toApply.length) {
+    hideAiCleanupSheet();
+    showToast('No changes applied');
+    return;
+  }
+
+  // Progress goes on the button's own label, not the topbar's import-status
+  // bar — that bar lives outside this sheet, and the sheet's own backdrop
+  // would hide it exactly the way the toast used to be hidden behind an
+  // open sheet. Text the user is already looking at is guaranteed visible.
+  aiCleanupApplyBtn.disabled = true;
+  aiCleanupSkipBtn.disabled = true;
+
+  let applied = 0;
+  for (let i = 0; i < toApply.length; i++) {
+    aiCleanupApplyBtn.textContent = `Applying ${i + 1} of ${toApply.length}…`;
+    const s = toApply[i];
+    const track = tracks.find((t) => t.id === s.trackId);
+    if (!track) continue;
+    track.title = s.newTitle;
+    track.artist = s.newArtist;
+    const { id, ...record } = track;
+    await saveTrack(id, record);
+    applied++;
+  }
+
+  aiCleanupApplyBtn.disabled = false;
+  aiCleanupSkipBtn.disabled = false;
+  aiCleanupApplyBtn.textContent = 'Apply Selected';
+
+  hideAiCleanupSheet();
+  if (currentView !== 'root') renderLibraryView();
+  showToast(applied ? `Updated ${pluralize(applied, 'song')}` : 'No changes applied');
+}
+
+// Sends every newly imported track's raw (pre-cleanup) title to Gemini in a
+// single batched request — one call per import batch rather than one per
+// track, since a personal-library import can easily be dozens of files at
+// once and per-track calls would multiply both latency and quota use for no
+// benefit. responseSchema (rather than a hand-parsed prompt) is what makes
+// the reply reliably parseable JSON instead of "usually valid JSON".
+async function cleanupTitlesWithGemini(newTracks) {
+  if (!geminiApiKey || !newTracks.length) return;
+
+  setAiCleanupBusy(true, `Cleaning up ${pluralize(newTracks.length, 'title')} with AI…`);
+  try {
+    await cleanupTitlesWithGeminiInner(newTracks);
+  } finally {
+    setAiCleanupBusy(false);
+  }
+}
+
+async function cleanupTitlesWithGeminiInner(newTracks) {
+  const items = newTracks.map((t, i) => ({ index: i, rawTitle: t.title, currentArtist: t.artist || '' }));
+  const requestBody = {
+    contents: [
+      {
+        parts: [
+          {
+            text:
+              'You clean up messy music file titles for a personal offline music library app. For each entry below, extract a clean song title and the primary performing artist. Strip upload/file noise: "(Official Video)", "(Official Audio)", "(Lyrics)", "[Reprod. ...]" / producer tags, resolution or codec tags, uploader/channel names, and trailing hashtags. Keep genuinely meaningful featured-artist credits in the title (e.g. "feat. X") when that reflects how the song was actually released, rather than stripping them outright. If currentArtist already looks clean and correct, keep it as-is rather than inventing a new one.\n\n' +
+              'Respond with ONLY a JSON object of the exact shape {"results":[{"index":number,"title":string,"artist":string}, ...]} — one entry per input, in any order, with no other text.\n\n' +
+              'Entries:\n' +
+              JSON.stringify(items),
+          },
+        ],
+      },
+    ],
+    generationConfig: {
+      // Deliberately just JSON mode, not a strict responseSchema — the
+      // schema's exact accepted field casing/shape turned out to be
+      // brittle across models (one combination came back as a flat "invalid
+      // argument" 400 with no further detail). Plain JSON mode plus an
+      // explicit shape description in the prompt is more broadly supported;
+      // the parsing below already treats the result defensively (missing
+      // fields/indexes are just skipped) rather than assuming a strict
+      // schema was enforced.
+      responseMimeType: 'application/json',
+    },
+  };
+
+  let response;
+  try {
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+        // Backstop so a stuck request can never leave the "Cleaning Up…"
+        // button spinning forever with no feedback — 30s is generous for a
+        // plain-text extraction call; anything past that is hung, not slow.
+        signal: AbortSignal.timeout(30000),
+      }
+    );
+  } catch (err) {
+    console.error('Gemini request failed', err);
+    showToast(err.name === 'TimeoutError' ? 'AI cleanup failed: request timed out' : 'AI cleanup failed: network error');
+    return;
+  }
+
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => '');
+    console.error('Gemini request failed', response.status, bodyText);
+    // Google's error body carries the actual reason (e.g. "API key not
+    // valid", "model not found") — surfacing that in the toast itself means
+    // the next failure is self-diagnosing without needing devtools open.
+    let detail = '';
+    try {
+      detail = JSON.parse(bodyText)?.error?.message || '';
+    } catch {
+      // body wasn't JSON — fall through with no detail rather than throwing
+    }
+    showToast(detail ? `AI cleanup failed: ${detail}` : `AI cleanup failed (${response.status})`);
+    return;
+  }
+
+  let parsed;
+  try {
+    const data = await response.json();
+    parsed = JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text ?? '');
+  } catch (err) {
+    console.error('Failed to parse Gemini response', err);
+    showToast('AI cleanup failed: unexpected response');
+    return;
+  }
+
+  const suggestions = [];
+  for (const result of parsed.results || []) {
+    const track = newTracks[result.index];
+    if (!track) continue;
+    const newTitle = (result.title || '').trim();
+    const newArtist = (result.artist || '').trim();
+    if (!newTitle) continue;
+    if (newTitle === track.title && newArtist === (track.artist || '')) continue;
+    suggestions.push({ trackId: track.id, oldTitle: track.title, oldArtist: track.artist || '', newTitle, newArtist });
+  }
+
+  if (suggestions.length) {
+    pendingAiSuggestions = suggestions;
+    showAiCleanupSheet();
+  } else {
+    showToast('AI cleanup: no changes suggested');
+  }
+}
+
+// The "Clean Up Existing Songs" button in Settings — runs the exact same
+// batched pass cleanupTitlesWithGemini already does for fresh imports, just
+// against the whole library instead of only what was just added. Tracks
+// that already read clean are filtered out inside cleanupTitlesWithGemini
+// itself (identical title/artist is skipped there), so re-running this
+// repeatedly only ever surfaces what's actually still messy.
+async function cleanupExistingLibrary() {
+  if (!geminiApiKey) {
+    showToast('Add a Gemini API key first');
+    return;
+  }
+  if (!tracks.length) {
+    showToast('No songs to clean up');
+    return;
+  }
+
+  aiCleanupExistingBtn.disabled = true;
+  aiCleanupExistingBtn.textContent = 'Cleaning Up…';
+  try {
+    await cleanupTitlesWithGemini(tracks);
+  } finally {
+    aiCleanupExistingBtn.disabled = false;
+    aiCleanupExistingBtn.textContent = 'Clean Up Existing Songs';
+  }
+}
+
 // Registry of sheet elements whose Escape-to-dismiss handling is generic —
 // adding a new sheet just means adding one entry here, not another
 // classList check in the keydown listener below.
@@ -416,6 +713,8 @@ const DISMISSIBLE_SHEETS = [
   { el: newPlaylistSheet, hide: hideNewPlaylistSheet },
   { el: playlistActionSheet, hide: hidePlaylistActionSheet },
   { el: playlistPickerSheet, hide: hidePlaylistPickerSheet },
+  { el: sortSheet, hide: hideSortSheet },
+  { el: aiCleanupSheet, hide: hideAiCleanupSheet },
   { el: addTracksSheet, hide: hideAddTracksSheet },
   { el: editTrackSheet, hide: hideEditTrackSheet },
 ];
@@ -425,6 +724,12 @@ async function init() {
   addBtn.innerHTML = ICONS.plus;
 
   applyTheme(getTheme());
+
+  sidebarCollapseBtn.innerHTML = ICONS.sidebarToggle;
+  sidebarCollapseBtn.title = document.documentElement.getAttribute('data-sidebar') === 'collapsed' ? 'Expand Sidebar' : 'Collapse Sidebar';
+  sidebarCollapseBtn.addEventListener('click', () => {
+    applySidebarCollapsed(document.documentElement.getAttribute('data-sidebar') !== 'collapsed');
+  });
 
   // Number(null) is 0, not NaN — reading the raw string first keeps an
   // absent saved value absent instead of it silently passing the range
@@ -502,14 +807,67 @@ async function init() {
   renderLibraryViewImmediate();
 
   sidebarSongsIconEl.innerHTML = ICONS.note;
+  sidebarAlbumsIconEl.innerHTML = ICONS.album;
+  sidebarArtistsIconEl.innerHTML = ICONS.artist;
   sidebarPlaylistsIconEl.innerHTML = ICONS.list;
   sidebarNewPlaylistBtn.innerHTML = ICONS.plus;
   sidebarSongsEl.addEventListener('click', goToSongs);
+  sidebarAlbumsEl.addEventListener('click', goToAlbums);
+  sidebarArtistsEl.addEventListener('click', goToArtists);
   sidebarPlaylistsHeaderEl.addEventListener('click', goToPlaylists);
+  makeActivatable(sidebarSongsEl, goToSongs, { label: 'Songs' });
+  makeActivatable(sidebarAlbumsEl, goToAlbums, { label: 'Albums' });
+  makeActivatable(sidebarArtistsEl, goToArtists, { label: 'Artists' });
+  makeActivatable(sidebarPlaylistsHeaderEl, goToPlaylists, { label: 'Playlists' });
   sidebarNewPlaylistBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     showNewPlaylistSheet();
   });
+
+  songsSortChevronEl.innerHTML = ICONS.chevron;
+  songsSortBtn.addEventListener('click', showSortSheet);
+  sortSheetBackdrop.addEventListener('click', hideSortSheet);
+  sortCancelBtn.addEventListener('click', hideSortSheet);
+  sortOptionBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      songsSortMode = btn.dataset.sort;
+      localStorage.setItem('songsSortMode', songsSortMode);
+      songsSortLabelEl.textContent = SORT_LABELS[songsSortMode];
+      hideSortSheet();
+      if (currentView === 'songs') render();
+    });
+  });
+
+  subPlayIconEl.innerHTML = ICONS.play;
+  subShuffleIconEl.innerHTML = ICONS.shuffle;
+  subPlayBtn.addEventListener('click', () => playQueueFromStart(currentDetailQueue));
+  subShuffleBtn.addEventListener('click', () => shuffleQueue(currentDetailQueue));
+
+  exportLibraryBtn.addEventListener('click', exportLibrary);
+  importLibraryBtn.addEventListener('click', () => backupFileInput.click());
+  backupFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    backupFileInput.value = '';
+    if (file) importLibraryBackup(file);
+  });
+
+  geminiApiKeyInput.value = geminiApiKey;
+  geminiApiKeyInput.addEventListener('change', () => {
+    geminiApiKey = geminiApiKeyInput.value.trim();
+    localStorage.setItem('geminiApiKey', geminiApiKey);
+  });
+  aiCleanupToggle.classList.toggle('active', aiCleanupEnabled);
+  aiCleanupToggle.setAttribute('aria-checked', String(aiCleanupEnabled));
+  aiCleanupToggle.addEventListener('click', () => {
+    aiCleanupEnabled = !aiCleanupEnabled;
+    localStorage.setItem('aiCleanupEnabled', String(aiCleanupEnabled));
+    aiCleanupToggle.classList.toggle('active', aiCleanupEnabled);
+    aiCleanupToggle.setAttribute('aria-checked', String(aiCleanupEnabled));
+  });
+  aiCleanupSheetBackdrop.addEventListener('click', hideAiCleanupSheet);
+  aiCleanupSkipBtn.addEventListener('click', hideAiCleanupSheet);
+  aiCleanupApplyBtn.addEventListener('click', applyAiCleanupSuggestions);
+  aiCleanupExistingBtn.addEventListener('click', cleanupExistingLibrary);
 
   sortable = Sortable.create(trackListEl, {
     delay: 300,
@@ -704,6 +1062,37 @@ async function init() {
       if (!el.classList.contains('hidden')) hide();
     }
   });
+
+  // Desktop transport shortcuts (Space/arrows), matching Music.app's own —
+  // skipped entirely while any sheet is open or while typing in a text
+  // field/select, and while nothing is loaded (no track to act on yet).
+  // Every <input> (including the seek/volume sliders themselves) is
+  // excluded via tagName so their own native arrow-key behavior is left
+  // alone rather than double-handled here.
+  document.addEventListener('keydown', (e) => {
+    const target = e.target;
+    const isFormField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable;
+    if (isFormField) return;
+    if (DISMISSIBLE_SHEETS.some(({ el }) => !el.classList.contains('hidden'))) return;
+    if (playerBar.classList.contains('hidden')) return;
+
+    if (e.code === 'Space') {
+      e.preventDefault();
+      togglePlay();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      playNext();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      playPrev();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      adjustVolume(5);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      adjustVolume(-5);
+    }
+  });
 }
 
 function showActionSheet(trackId, { context = 'library', playlistId = null } = {}) {
@@ -729,6 +1118,15 @@ function toggleMute() {
     audio.volume = previousVolume || 1;
   }
   volumeEl.value = Math.round(audio.volume * 100);
+  localStorage.setItem('volume', String(audio.volume));
+  updateVolumeIcon();
+  updateVolumeFill();
+}
+
+function adjustVolume(deltaPercent) {
+  const next = Math.max(0, Math.min(100, Math.round(audio.volume * 100) + deltaPercent));
+  audio.volume = next / 100;
+  volumeEl.value = next;
   localStorage.setItem('volume', String(audio.volume));
   updateVolumeIcon();
   updateVolumeFill();
@@ -1001,6 +1399,43 @@ function goToPlaylists() {
   renderLibraryView();
 }
 
+function goToAlbums() {
+  currentView = 'albums';
+  renderLibraryView();
+}
+
+function goToArtists() {
+  currentView = 'artists';
+  renderLibraryView();
+}
+
+function openAlbumDetail(name) {
+  currentAlbumName = name;
+  currentView = 'album-detail';
+  renderLibraryView();
+}
+
+function openArtistDetail(name) {
+  currentArtistName = name;
+  currentView = 'artist-detail';
+  renderLibraryView();
+}
+
+// Groups the full library by album/artist, falling back to the same
+// "Unknown Album"/"Unknown Artist" label used for individual track rows so
+// untagged files still land in a single browsable bucket instead of being
+// split across a blank-named group per file.
+function groupTracksBy(field) {
+  const fallback = field === 'album' ? 'Unknown Album' : 'Unknown Artist';
+  const map = new Map();
+  for (const t of tracks) {
+    const key = (t[field] || '').trim() || fallback;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(t);
+  }
+  return map;
+}
+
 function openPlaylistDetail(id) {
   currentPlaylistId = id;
   currentView = 'playlist-detail';
@@ -1015,7 +1450,15 @@ function closePlaylistDetail() {
 
 function goBack() {
   if (currentView === 'playlist-detail') closePlaylistDetail();
-  else {
+  else if (currentView === 'album-detail') {
+    currentAlbumName = null;
+    currentView = 'albums';
+    renderLibraryView();
+  } else if (currentView === 'artist-detail') {
+    currentArtistName = null;
+    currentView = 'artists';
+    renderLibraryView();
+  } else {
     currentView = 'root';
     renderLibraryView();
   }
@@ -1055,6 +1498,7 @@ async function importFiles(fileList) {
   let failed = 0;
   let duplicates = 0;
   let orderCounter = nextOrderValue();
+  const newlyImportedTracks = [];
 
   // Cheap dedupe signature (name+size, not a content hash — fast enough to
   // check per-file with no CPU cost) so re-importing an overlapping folder
@@ -1086,9 +1530,12 @@ async function importFiles(fileList) {
         duration: format.duration || null,
         blob: file,
         order: orderCounter++,
+        addedAt: Date.now(),
       };
       await saveTrack(id, record);
-      tracks.push({ id, ...record });
+      const newTrack = { id, ...record };
+      tracks.push(newTrack);
+      newlyImportedTracks.push(newTrack);
       knownSignatures.add(signature);
       imported++;
     } catch (err) {
@@ -1109,12 +1556,221 @@ async function importFiles(fileList) {
   if (failed) summary.push(`${failed} failed`);
   if (skippedCount) summary.push(`${skippedCount} skipped (not audio)`);
   showToast(summary.join(' · '));
+
+  // Fire-and-forget: cleanupTitlesWithGemini handles its own errors/toasts
+  // and only opens the review sheet if it actually has suggestions, so the
+  // import flow above doesn't need to wait on it.
+  if (aiCleanupEnabled && geminiApiKey && newlyImportedTracks.length) {
+    cleanupTitlesWithGemini(newlyImportedTracks);
+  }
+}
+
+// ---- backup / restore ----
+// The library lives only in this browser's IndexedDB — there's no server
+// copy, no original files kept around to re-import from. A backup is a
+// single JSON file with every track's metadata AND its audio (base64, since
+// JSON can't hold binary directly) plus every playlist, including cover
+// images. Deliberately not a zip: this app already avoids adding
+// dependencies where the platform can do the job (no CDN fonts, no build
+// tooling beyond Vite itself), and at the personal-library scale this app
+// targets, one JSON file with embedded base64 is simpler to reason about
+// than introducing a zip library for what's fundamentally one export button.
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function base64ToBlob(base64, mimeType) {
+  const byteChars = atob(base64);
+  const bytes = new Uint8Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+  return new Blob([bytes], { type: mimeType });
+}
+
+async function exportLibrary() {
+  if (!tracks.length && !playlists.length) {
+    showToast('Nothing to export yet');
+    return;
+  }
+
+  setImporting(true);
+  importText.textContent = 'Preparing export…';
+  importBarFill.style.width = '0%';
+
+  const manifest = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    tracks: [],
+    playlists: [],
+  };
+
+  for (let i = 0; i < tracks.length; i++) {
+    const t = tracks[i];
+    importBarFill.style.width = `${Math.round((i / tracks.length) * 100)}%`;
+    importText.textContent = `Preparing ${i + 1} of ${tracks.length}: ${t.title}`;
+    manifest.tracks.push({
+      id: t.id,
+      name: t.name,
+      title: t.title,
+      artist: t.artist,
+      album: t.album,
+      duration: t.duration,
+      order: t.order,
+      addedAt: t.addedAt,
+      mimeType: t.blob.type || 'audio/mpeg',
+      audioBase64: await blobToBase64(t.blob),
+    });
+  }
+
+  for (const p of playlists) {
+    const entry = { id: p.id, name: p.name, trackIds: p.trackIds, order: p.order };
+    if (p.cover) {
+      entry.coverMimeType = p.cover.type || 'image/jpeg';
+      entry.coverBase64 = await blobToBase64(p.cover);
+    }
+    manifest.playlists.push(entry);
+  }
+
+  importBarFill.style.width = '100%';
+  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `music-streamer-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  setImporting(false);
+  showToast(`Exported ${pluralize(tracks.length, 'song')} · ${pluralize(playlists.length, 'playlist')}`);
+}
+
+async function importLibraryBackup(file) {
+  let manifest;
+  try {
+    manifest = JSON.parse(await file.text());
+    if (!Array.isArray(manifest.tracks)) throw new Error('missing tracks array');
+  } catch (err) {
+    console.error('Invalid backup file', err);
+    showToast("That file isn't a valid backup");
+    return;
+  }
+
+  setImporting(true);
+  let imported = 0;
+  let duplicates = 0;
+  let failed = 0;
+  let orderCounter = nextOrderValue();
+  const knownSignatures = new Set(tracks.map((t) => `${t.name}|${t.blob.size}`));
+  const idMap = new Map(); // backup's old track id -> this restore's new id, so playlists can be remapped afterward
+
+  const backupTracks = manifest.tracks;
+  for (let i = 0; i < backupTracks.length; i++) {
+    const bt = backupTracks[i];
+    importBarFill.style.width = `${Math.round((i / backupTracks.length) * 100)}%`;
+    importText.textContent = `Restoring ${i + 1} of ${backupTracks.length}: ${bt.title}`;
+
+    try {
+      const blob = base64ToBlob(bt.audioBase64, bt.mimeType || 'audio/mpeg');
+      const signature = `${bt.name}|${blob.size}`;
+      if (knownSignatures.has(signature)) {
+        duplicates++;
+        continue;
+      }
+      const id = generateId();
+      idMap.set(bt.id, id);
+      const record = {
+        name: bt.name,
+        title: bt.title,
+        artist: bt.artist || '',
+        album: bt.album || '',
+        duration: bt.duration || null,
+        blob,
+        order: orderCounter++,
+        addedAt: bt.addedAt || Date.now(),
+      };
+      await saveTrack(id, record);
+      tracks.push({ id, ...record });
+      knownSignatures.add(signature);
+      imported++;
+    } catch (err) {
+      console.error('Failed to restore', bt.title, err);
+      failed++;
+    }
+  }
+  sortTracks();
+
+  let restoredPlaylists = 0;
+  let playlistOrderCounter = nextPlaylistOrderValue();
+  for (const bp of manifest.playlists || []) {
+    const trackIds = bp.trackIds.map((oldId) => idMap.get(oldId)).filter(Boolean);
+    const id = generateId();
+    const record = {
+      name: bp.name,
+      trackIds,
+      cover: bp.coverBase64 ? base64ToBlob(bp.coverBase64, bp.coverMimeType || 'image/jpeg') : null,
+      order: playlistOrderCounter++,
+    };
+    await savePlaylist(id, record);
+    playlists.push({ id, ...record });
+    restoredPlaylists++;
+  }
+  sortPlaylists();
+
+  importBarFill.style.width = '100%';
+  setImporting(false);
+  renderLibraryView();
+
+  const summary = [`Restored ${pluralize(imported, 'song')}`];
+  if (restoredPlaylists) summary.push(pluralize(restoredPlaylists, 'playlist'));
+  if (duplicates) summary.push(`${duplicates} already in library`);
+  if (failed) summary.push(`${failed} failed`);
+  showToast(summary.join(' · '));
 }
 
 function setImporting(isImporting) {
   addBtn.disabled = isImporting;
   importStatus.classList.toggle('hidden', !isImporting);
   if (isImporting) importBarFill.style.width = '0%';
+}
+
+// Drives two copies of the same progress bar at once — the topbar's
+// import-status strip and a second one inline in the Settings sheet's AI
+// Cleanup section (see style.css) — as an indeterminate animation, since a
+// single batched Gemini request has no discrete steps to report progress
+// against. Both are updated unconditionally rather than picking one based
+// on "which context was this called from": whichever one is actually
+// on-screen is the one that matters, and the other stays harmlessly hidden
+// behind whatever's covering it. This is what fixes cleanup appearing to
+// do nothing when triggered from Settings — the topbar bar alone is
+// invisible behind the still-open settings sheet, the same bug class the
+// toast z-index fix addressed for toast notifications.
+function setAiCleanupBusy(isBusy, label) {
+  const text = label || 'Cleaning up titles with AI…';
+
+  importStatus.classList.toggle('hidden', !isBusy);
+  importBarFill.classList.toggle('indeterminate', isBusy);
+  aiCleanupProgressEl.classList.toggle('hidden', !isBusy);
+  aiCleanupProgressFillEl.classList.toggle('indeterminate', isBusy);
+
+  if (isBusy) {
+    // Clears any inline width left over from a prior run (e.g. "100%" from
+    // the last completed batch) — an inline style would otherwise outrank
+    // .indeterminate's own width:30% in the cascade and the sliding segment
+    // would silently render full-width instead.
+    importBarFill.style.width = '';
+    importText.textContent = text;
+    aiCleanupProgressFillEl.style.width = '';
+    aiCleanupProgressTextEl.textContent = text;
+  } else {
+    importBarFill.style.width = '0%';
+    aiCleanupProgressFillEl.style.width = '0%';
+  }
 }
 
 let toastTimer = null;
@@ -1136,6 +1792,23 @@ function stripExtension(name) {
 
 function pluralize(count, word) {
   return `${count} ${word}${count === 1 ? '' : 's'}`;
+}
+
+// Every clickable row in this app (track rows, nav rows, playlist cards,
+// sidebar items) is a plain <div>/<li> with only a click listener — none of
+// them were reachable or activatable from the keyboard. This is the one
+// piece of wiring every one of them needs: a tab stop, a role a screen
+// reader announces as interactive, and Enter/Space triggering the same
+// handler a click would.
+function makeActivatable(element, onActivate, { label } = {}) {
+  element.tabIndex = 0;
+  element.setAttribute('role', 'button');
+  if (label) element.setAttribute('aria-label', label);
+  element.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    onActivate(e);
+  });
 }
 
 // ---- rendering ----
@@ -1166,17 +1839,27 @@ function renderLibraryViewImmediate() {
   const isSongs = currentView === 'songs';
   const isPlaylists = currentView === 'playlists';
   const isDetail = currentView === 'playlist-detail';
+  const isAlbums = currentView === 'albums';
+  const isArtists = currentView === 'artists';
+  const isAlbumDetail = currentView === 'album-detail';
+  const isArtistDetail = currentView === 'artist-detail';
+  const isTrackListView = isSongs || isDetail || isAlbumDetail || isArtistDetail;
 
   libraryRootEl.classList.toggle('hidden', !isRoot);
   subHeaderEl.classList.toggle('hidden', isRoot);
   if (!isSongs && searchActive) hideSearch();
 
-  trackListEl.classList.toggle('hidden', !(isSongs || isDetail));
+  trackListEl.classList.toggle('hidden', !isTrackListView);
+  trackListHeaderEl.classList.toggle('hidden', !isTrackListView);
   playlistListEl.classList.toggle('hidden', !isPlaylists);
+  albumListEl.classList.toggle('hidden', !isAlbums);
+  artistListEl.classList.toggle('hidden', !isArtists);
   emptyStateEl.classList.add('hidden');
   searchEmptyStateEl.classList.add('hidden');
   playlistsEmptyStateEl.classList.add('hidden');
   playlistEmptyStateEl.classList.add('hidden');
+  songsSortBtn.classList.toggle('hidden', !isSongs);
+  subHeaderActionsEl.classList.add('hidden'); // re-shown by whichever detail branch below has tracks to act on
 
   renderSidebar();
 
@@ -1188,8 +1871,9 @@ function renderLibraryViewImmediate() {
   if (isSongs) {
     subBackLabelEl.textContent = 'Library';
     subTitleEl.textContent = 'Songs';
-    subSubtitleEl.textContent = pluralize(tracks.length, 'song');
+    subSubtitleEl.textContent = trackListSummary(tracks);
     subActionBtn.classList.add('hidden');
+    songsSortLabelEl.textContent = SORT_LABELS[songsSortMode];
     render();
   } else if (isPlaylists) {
     subBackLabelEl.textContent = 'Library';
@@ -1201,6 +1885,30 @@ function renderLibraryViewImmediate() {
     subActionBtn.onclick = showNewPlaylistSheet;
     if (sortable) sortable.option('disabled', true);
     renderPlaylistsList();
+  } else if (isAlbums) {
+    subBackLabelEl.textContent = 'Library';
+    subTitleEl.textContent = 'Albums';
+    subSubtitleEl.textContent = pluralize(groupTracksBy('album').size, 'album');
+    subActionBtn.classList.add('hidden');
+    emptyStateEl.classList.toggle('hidden', tracks.length > 0);
+    renderGroupList(albumListEl, 'album', openAlbumDetail);
+  } else if (isArtists) {
+    subBackLabelEl.textContent = 'Library';
+    subTitleEl.textContent = 'Artists';
+    subSubtitleEl.textContent = pluralize(groupTracksBy('artist').size, 'artist');
+    subActionBtn.classList.add('hidden');
+    emptyStateEl.classList.toggle('hidden', tracks.length > 0);
+    renderGroupList(artistListEl, 'artist', openArtistDetail);
+  } else if (isAlbumDetail) {
+    subBackLabelEl.textContent = 'Albums';
+    subActionBtn.classList.add('hidden');
+    if (sortable) sortable.option('disabled', true);
+    renderGroupDetail('album', currentAlbumName);
+  } else if (isArtistDetail) {
+    subBackLabelEl.textContent = 'Artists';
+    subActionBtn.classList.add('hidden');
+    if (sortable) sortable.option('disabled', true);
+    renderGroupDetail('artist', currentArtistName);
   } else {
     subBackLabelEl.textContent = 'Playlists';
     subActionBtn.classList.remove('hidden');
@@ -1215,6 +1923,8 @@ function renderLibraryViewImmediate() {
 function renderSidebar() {
   const songsActive = currentView === 'root' || currentView === 'songs';
   sidebarSongsEl.classList.toggle('active', songsActive);
+  sidebarAlbumsEl.classList.toggle('active', currentView === 'albums' || currentView === 'album-detail');
+  sidebarArtistsEl.classList.toggle('active', currentView === 'artists' || currentView === 'artist-detail');
   sidebarPlaylistsHeaderEl.classList.toggle('active', currentView === 'playlists');
 
   sidebarPlaylistListEl.innerHTML = '';
@@ -1226,6 +1936,7 @@ function renderSidebar() {
     li.textContent = pl.name;
     li.title = pl.name;
     li.addEventListener('click', () => openPlaylistDetail(pl.id));
+    makeActivatable(li, () => openPlaylistDetail(pl.id), { label: pl.name });
     frag.appendChild(li);
   }
   sidebarPlaylistListEl.appendChild(frag);
@@ -1234,7 +1945,55 @@ function renderSidebar() {
 function renderLibraryRoot() {
   libraryRootListEl.innerHTML = '';
   libraryRootListEl.appendChild(buildNavRow('Songs', tracks.length, goToSongs));
+  libraryRootListEl.appendChild(buildNavRow('Albums', groupTracksBy('album').size, goToAlbums));
+  libraryRootListEl.appendChild(buildNavRow('Artists', groupTracksBy('artist').size, goToArtists));
   libraryRootListEl.appendChild(buildNavRow('Playlists', playlists.length, goToPlaylists));
+}
+
+// Shared renderer for the Albums and Artists group lists — each row is a
+// group name + track count, reusing the same nav-row look as the Library
+// root screen's Songs/Playlists rows.
+function renderGroupList(listEl, field, onOpen) {
+  listEl.innerHTML = '';
+  const groups = groupTracksBy(field);
+  const names = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+  const frag = document.createDocumentFragment();
+  for (const name of names) {
+    frag.appendChild(buildNavRow(name, groups.get(name).length, () => onOpen(name)));
+  }
+  listEl.appendChild(frag);
+}
+
+// Shared renderer for a single album's or artist's track list — reuses
+// renderTrackRow with context 'library' since these are real library tracks
+// (rename/delete/add-to-playlist all apply), just filtered to one group.
+function renderGroupDetail(field, name) {
+  const fallback = field === 'album' ? 'Unknown Album' : 'Unknown Artist';
+  const groupTracks = tracks.filter((t) => ((t[field] || '').trim() || fallback) === name);
+  subTitleEl.textContent = name;
+  subSubtitleEl.textContent = trackListSummary(groupTracks);
+
+  currentDetailQueue = groupTracks;
+  subHeaderActionsEl.classList.toggle('hidden', groupTracks.length === 0);
+
+  trackListEl.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (const track of groupTracks) {
+    frag.appendChild(renderTrackRow(track, { context: 'library', queue: groupTracks }));
+  }
+  trackListEl.appendChild(frag);
+}
+
+function trackListSummary(tracksArr) {
+  const totalSeconds = tracksArr.reduce((sum, t) => sum + (t.duration || 0), 0);
+  return `${pluralize(tracksArr.length, 'song')} · ${formatDurationLong(totalSeconds)}`;
+}
+
+function formatDurationLong(totalSeconds) {
+  const totalMinutes = Math.round(totalSeconds / 60);
+  const hrs = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  return hrs > 0 ? `${hrs} hr ${mins} min` : `${mins} min`;
 }
 
 function buildNavRow(label, count, onClick) {
@@ -1255,27 +2014,45 @@ function buildNavRow(label, count, onClick) {
 
   li.append(titleEl, countEl, chevron);
   li.addEventListener('click', onClick);
+  makeActivatable(li, onClick, { label });
   return li;
+}
+
+// Re-sorts a copy for display only — never touches the stored `order` field,
+// so switching back to "Custom Order" restores exactly the manual
+// arrangement the user left it in, drag-reorder included.
+function sortForDisplay(list) {
+  if (songsSortMode === 'title') return [...list].sort((a, b) => a.title.localeCompare(b.title));
+  if (songsSortMode === 'artist') {
+    return [...list].sort(
+      (a, b) => (a.artist || 'Unknown Artist').localeCompare(b.artist || 'Unknown Artist') || a.title.localeCompare(b.title)
+    );
+  }
+  if (songsSortMode === 'recent') return [...list].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+  return list;
 }
 
 function render() {
   const query = searchEl.value.trim().toLowerCase();
   visibleTracks = query
-    ? tracks.filter((t) => [t.title, t.album].some((s) => (s || '').toLowerCase().includes(query)))
+    ? tracks.filter((t) => [t.title, t.artist, t.album].some((s) => (s || '').toLowerCase().includes(query)))
     : tracks;
 
   emptyStateEl.classList.toggle('hidden', tracks.length > 0);
   searchEmptyStateEl.classList.toggle('hidden', !query || visibleTracks.length > 0);
 
   // Dragging to reorder only makes sense against the full, unfiltered
-  // library — reordering a filtered subset wouldn't map cleanly back to it.
+  // library in its stored manual order — a search filter or a non-custom
+  // sort mode both mean what's on screen no longer maps cleanly back to it.
   trackListEl.classList.toggle('searching', !!query);
-  if (sortable) sortable.option('disabled', !!query);
+  if (sortable) sortable.option('disabled', !!query || songsSortMode !== 'custom');
+
+  const displayTracks = sortForDisplay(visibleTracks);
 
   trackListEl.innerHTML = '';
   const frag = document.createDocumentFragment();
-  for (const track of visibleTracks) {
-    frag.appendChild(renderTrackRow(track));
+  for (const track of displayTracks) {
+    frag.appendChild(renderTrackRow(track, { queue: displayTracks }));
   }
   trackListEl.appendChild(frag);
 }
@@ -1322,6 +2099,7 @@ function renderPlaylistCard(playlist) {
 
   li.append(cover, moreBtn, info);
   li.addEventListener('click', () => openPlaylistDetail(playlist.id));
+  makeActivatable(li, () => openPlaylistDetail(playlist.id), { label: playlist.name });
   return li;
 }
 
@@ -1342,8 +2120,11 @@ function renderPlaylistDetail() {
     persistPlaylist(pl);
   }
 
-  subSubtitleEl.textContent = pluralize(plTracks.length, 'song');
+  subSubtitleEl.textContent = trackListSummary(plTracks);
   playlistEmptyStateEl.classList.toggle('hidden', plTracks.length > 0);
+
+  currentDetailQueue = plTracks;
+  subHeaderActionsEl.classList.toggle('hidden', plTracks.length === 0);
 
   trackListEl.innerHTML = '';
   const frag = document.createDocumentFragment();
@@ -1392,6 +2173,10 @@ function renderTrackRow(track, { context = 'library', queue = visibleTracks } = 
   artistEl.textContent = track.artist || 'Unknown Artist';
   meta.append(titleEl, artistEl);
 
+  const albumEl = document.createElement('span');
+  albumEl.className = 'track-album';
+  albumEl.textContent = track.album || '';
+
   const duration = document.createElement('span');
   duration.className = 'track-duration';
   duration.textContent = formatTime(track.duration);
@@ -1406,8 +2191,9 @@ function renderTrackRow(track, { context = 'library', queue = visibleTracks } = 
     else showActionSheet(track.id, { context: 'library' });
   });
 
-  li.append(meta, duration, moreBtn);
+  li.append(meta, albumEl, duration, moreBtn);
   li.addEventListener('click', () => playTrackById(track.id, queue));
+  makeActivatable(li, () => playTrackById(track.id, queue), { label: `${track.title} by ${track.artist || 'Unknown Artist'}` });
   return li;
 }
 
@@ -1577,6 +2363,25 @@ function buildShuffleOrder(list, startId) {
   }
   const start = list.find((t) => t.id === startId);
   return start ? [start, ...rest] : rest;
+}
+
+// The sub-header's Play/Shuffle buttons on Album/Artist/Playlist detail
+// screens — Play always starts at the front of the list in its displayed
+// order (so it turns shuffle off if it was on from a previous session);
+// Shuffle turns shuffle on and hands playTrackById a random starting track,
+// which is what makes playTrackById itself rebuild shuffleOrder against
+// this specific queue.
+function playQueueFromStart(queue) {
+  if (!queue.length) return;
+  if (shuffle) toggleShuffle();
+  playTrackById(queue[0].id, queue);
+}
+
+function shuffleQueue(queue) {
+  if (!queue.length) return;
+  if (!shuffle) toggleShuffle();
+  const randomTrack = queue[Math.floor(Math.random() * queue.length)];
+  playTrackById(randomTrack.id, queue);
 }
 
 function togglePlay() {
